@@ -14,7 +14,7 @@
   ],
   "scripts": {
     "build": "tsc -b && tsup",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json",
     "test": "vitest run",
     "lint:wording": "node dist/lint-cli.js"
   },
