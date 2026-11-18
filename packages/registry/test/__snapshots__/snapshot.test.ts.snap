@@ -29,6 +29,22 @@ exports[`snapshots > JSON Schema 1`] = `
               "minItems": 1,
               "type": "array",
             },
+            "staticNetworks": {
+              "anyOf": [
+                {
+                  "const": "any-evm",
+                  "type": "string",
+                },
+                {
+                  "items": {
+                    "pattern": "^eip155:\\d+$",
+                    "type": "string",
+                  },
+                  "minItems": 1,
+                  "type": "array",
+                },
+              ],
+            },
             "x402Versions": {
               "items": {
                 "const": 2,
@@ -297,6 +313,10 @@ exports[`snapshots > JSON Schema 1`] = `
               "static": {
                 "additionalProperties": false,
                 "properties": {
+                  "could-not-verify": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
                   "found-a-problem": {
                     "minLength": 1,
                     "type": "string",
@@ -703,6 +723,7 @@ exports[`snapshots > registry 1`] = `
       "schemes": [
         "exact",
       ],
+      "staticNetworks": "any-evm",
       "x402Versions": [
         2,
       ],
@@ -729,6 +750,11 @@ exports[`snapshots > registry 1`] = `
         "change": "Static texts now say that routes are compared within one payment scheme, and the static not-applicable text no longer claims a payment cannot be moved.",
         "date": "2026-11-18",
         "version": 3,
+      },
+      {
+        "change": "Added static texts for .index-range-overlap, .dynamic-per-pattern, .tiers and .stale-mapping, and appliesTo.staticNetworks so that static checks read any EVM network while live runs stay on Base Sepolia. .dup-index now compares indexes within one payment scheme, network and asset.",
+        "date": "2026-11-18",
+        "version": 4,
       },
     ],
     "escalation": [
@@ -796,6 +822,11 @@ exports[`snapshots > registry 1`] = `
       {
         "id": "X402-03.dynamic-per-pattern",
         "kind": "static",
+        "static": {
+          "found-a-problem": "These routes have a part that changes per request, such as [id], but one payment address and price for every value of it. A payment made for one value carries the same terms as a payment for any other value. This matters when the items behind those values are not worth the same. On our test shop, a payment made for one value was accepted for another. This report sent no payment, so it has not confirmed this for your service.",
+          "found-no-problem": "Every route in your route manifest with a part that changes per request gives each item its own address. This covers only what this check tried.",
+          "not-applicable": "No route in your route manifest has a part that changes per request.",
+        },
         "title": "Every page of a dynamic route shares one payment address",
       },
       {
@@ -806,11 +837,22 @@ exports[`snapshots > registry 1`] = `
       {
         "id": "X402-03.tiers",
         "kind": "static",
+        "static": {
+          "found-a-problem": "These tiers of one route share the same payment scheme, network, asset, price and payment address in your route manifest. On our test shop, routes that shared these terms accepted each other's payments. Two tiers at the same price were not tested. This report sent no payment, so it has not confirmed this for your tiers.",
+          "found-no-problem": "No two tiers of one route in your route manifest share the same payment scheme, network, asset, price and payment address. This covers only what this check tried.",
+          "not-applicable": "No route in your route manifest has tiers.",
+        },
         "title": "Different price tiers share a payment address",
       },
       {
         "id": "X402-03.stale-mapping",
         "kind": "static",
+        "static": {
+          "could-not-verify": "An earlier manifest could not be read, so the mapping history could not be compared.",
+          "found-a-problem": "An address index or payment address that your earlier manifest gave to one route is now given to a different route with the same payment scheme, network, asset and price. A payment made earlier for the old route carries the same recipient and amount as a payment for the new one. This report sent no payment, so it has not confirmed what your service does with it.",
+          "found-no-problem": "No address index or payment address that your earlier manifest gave to one route is now given to a different route with the same payment scheme, network, asset and price. This covers only what this check tried.",
+          "not-applicable": "No earlier manifest was given, so there was no history to compare with.",
+        },
         "title": "The route-to-address list is out of date with the routes",
       },
       {
@@ -821,6 +863,13 @@ exports[`snapshots > registry 1`] = `
       {
         "id": "X402-03.index-range-overlap",
         "kind": "static",
+        "static": {
+          "could-not-verify": "At least one route gives each item its own address but does not say which item ids it uses, so its address range could not be compared.",
+          "found-a-problem": "These routes are given address ranges in your route manifest that overlap, or a range that includes an index given to another route, so at least one address index is used twice. On our test shop, routes that shared a network, asset, price and payment address accepted each other's payments. This report sent no payment, so it has not confirmed this for your service.",
+          "found-no-problem": "No two address ranges in your route manifest overlap, and no range includes an index given to another route. This covers only what this check tried.",
+          "found-no-problem-within-scheme": "No two address ranges in your route manifest that use the same payment scheme overlap, and no range includes an index given to another route that uses the same payment scheme. This covers only what this check tried.",
+          "not-applicable": "No route in your route manifest gives each item its own address, so there were no ranges to compare.",
+        },
         "title": "Two ranges of address indexes overlap",
       },
       {
@@ -830,7 +879,7 @@ exports[`snapshots > registry 1`] = `
       },
     ],
     "title": "A payment is tied to the route it was made for",
-    "version": 3,
+    "version": 4,
     "whatItTests": "Whether a payment made for one paid route can be used on a different paid route that has the same price and terms.",
     "whatSomeoneCouldDo": "Pay for one route and use that payment to get a different route with the same price, or use one payment across many routes.",
   },

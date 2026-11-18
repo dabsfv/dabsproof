@@ -26,7 +26,10 @@ describe('round trip: demo-format fixtures', () => {
   }
 
   it('the demo-format hd-per-resource fixture imports to the manifest fixture of the same name', () => {
-    const imported = importDemoConfig(readJson(demoFixturePath('hd-per-resource')), { decimals: 6 });
+    const imported = importDemoConfig(readJson(demoFixturePath('hd-per-resource')), {
+      decimals: 6,
+      perResourceIds: { first: 1, last: 9999 },
+    });
     const file = loadManifest(fixturePath('hd-per-resource'));
     if (!imported.ok || !file.ok) throw new Error('did not load');
     const { $comment: _c, ...withoutComment } = file.manifest;

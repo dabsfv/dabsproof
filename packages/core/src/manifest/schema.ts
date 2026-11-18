@@ -39,8 +39,18 @@ export const NOT_EXPORTED_TEXT: Readonly<Record<NotExportedReason, string>> = Ob
 
 const Address = z.string().regex(ADDRESS, M.address);
 const Route = z.string().regex(ROUTE, M.route);
-const Index = z.number().int().min(0);
-const isDynamic = (route: string): boolean => /\[[^\]/]+\]/.test(route);
+/** Non-hardened BIP-32 child indexes only: 0 to 2^31 - 1. */
+export const MAX_INDEX = 2 ** 31 - 1;
+const Index = z.number().int().min(0).max(MAX_INDEX, M.indexLimit);
+const ItemId = z.number().int().min(0);
+
+export const PerResourceSchema = z
+  .object({ baseIndex: Index, firstId: ItemId.optional(), lastId: ItemId.optional() })
+  .strict()
+  .refine((p) => (p.firstId === undefined) === (p.lastId === undefined), { message: M.idRange })
+  .refine((p) => p.firstId === undefined || p.lastId === undefined || p.firstId <= p.lastId, { message: M.idRange })
+  .refine((p) => p.lastId === undefined || p.baseIndex + p.lastId <= MAX_INDEX, { message: M.rangeLimit });
+export const isDynamic = (route: string): boolean => /\[[^\]/]+\]/.test(route);
 
 export const ManifestRouteSchema = z
   .object({
@@ -56,7 +66,7 @@ export const ManifestRouteSchema = z
     network: z.string().regex(EVM_NETWORK, M.network),
     address: Address.optional(),
     index: Index.optional(),
-    perResource: z.object({ baseIndex: Index }).strict().optional(),
+    perResource: PerResourceSchema.optional(),
   })
   .strict()
   .refine((r) => [r.address, r.index, r.perResource].filter((x) => x !== undefined).length === 1, { message: M.payee })
@@ -95,7 +105,7 @@ export const schemeOf = (r: ManifestRoute): Scheme => r.scheme ?? 'exact';
 const OWN_MESSAGES = new Set<string>(Object.values(M));
 const KNOWN_FIELDS = new Set<string>([
   ...['$comment', 'manifestVersion', 'routes', 'notExported', 'route', 'reason', 'tier', 'scheme', 'price'],
-  ...['asset', 'network', 'address', 'index', 'perResource', 'baseIndex', '_note', 'payTo'],
+  ...['asset', 'network', 'address', 'index', 'perResource', 'baseIndex', 'firstId', 'lastId', '_note', 'payTo'],
 ]);
 /** A path part is shown only if it is a number, a known field name or a valid route path. */
 const safePart = (p: PropertyKey): string =>

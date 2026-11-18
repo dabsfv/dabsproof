@@ -1,13 +1,34 @@
 // One renderer for the report (Markdown here; HTML later). All wording comes from the registry
 // or from REPORT_TEXT, so pnpm lint:wording covers every sentence a seller reads.
 import { BASE_SEPOLIA, type CheckEntry, getCheck, OUTCOME_LABEL, OUTCOMES } from '@dabsproof/registry';
-import { NOT_EXPORTED_TEXT } from '../manifest/schema.js';
+import { type ManifestRoute, NOT_EXPORTED_TEXT } from '../manifest/schema.js';
 import type { CheckResult, ResultGroup, RouteRef } from '../results/types.js';
 import type { StaticReport } from '../static/analyse.js';
 import { REPORT_TEXT as T } from './text.js';
 
 /** First 6 and last 4 characters, for example 0x0000…0010. */
 export const shortAddress = (a: string): string => `${a.slice(0, 6)}…${a.slice(-4)}`;
+
+/** Who gets paid, as shown to a seller. */
+function payeeLabel(r: { address?: string; index?: number; range?: { first: number; last: number }; base?: number }) {
+  if (r.address !== undefined) return `\`${shortAddress(r.address)}\``;
+  if (r.range) return `${T.addressIndexesLabel} ${r.range.first} ${T.rangeTo} ${r.range.last}`;
+  if (r.index !== undefined) return `${T.addressIndexLabel} ${r.index}`;
+  return `${T.baseIndexLabel} ${r.base}`;
+}
+const manifestPayee = (r: ManifestRoute): string => {
+  const p = r.perResource;
+  const range =
+    p && p.firstId !== undefined && p.lastId !== undefined
+      ? { first: p.baseIndex + p.firstId, last: p.baseIndex + p.lastId }
+      : undefined;
+  return payeeLabel({
+    ...(r.address !== undefined ? { address: r.address } : {}),
+    ...(r.index !== undefined ? { index: r.index } : {}),
+    ...(range ? { range } : {}),
+    ...(p ? { base: p.baseIndex } : {}),
+  });
+};
 
 /** One route per line: tier and scheme only when they matter, then who gets paid. */
 const routeLine =
@@ -16,9 +37,12 @@ const routeLine =
     const parts: string[] = [];
     if (r.tier !== undefined) parts.push(`${T.tierLabel} ${r.tier}`);
     if (showScheme) parts.push(`${T.schemeLabel} ${r.scheme}`);
-    parts.push(r.address !== undefined ? `\`${shortAddress(r.address)}\`` : `${T.addressIndexLabel} ${r.index}`);
-    return `- \`${r.route}\` (${parts.join(', ')})`;
+    parts.push(payeeLabel(r));
+    const earlier = r.earlierRoute !== undefined ? `; ${T.earlierGivenTo} \`${r.earlierRoute}\`` : '';
+    return `- \`${r.route}\` (${parts.join(', ')}${earlier})`;
   };
+
+const tierPart = (r: ManifestRoute) => (r.tier !== undefined ? ` (${T.tierLabel} ${r.tier})` : '');
 
 function entryFor(checkId: string): CheckEntry {
   const e = getCheck(checkId);
@@ -57,8 +81,8 @@ function resultLines(entry: CheckEntry, r: CheckResult, all: CheckResult[], show
       '',
     );
   } else {
-    const text = r.note === 'nothing-checked' ? T.nothingChecked : r.note === 'nothing-fixed' ? T.nothingFixed : null;
-    out.push(text ?? entry.outcomes['could-not-verify'], '');
+    const fixed = r.note === 'nothing-checked' ? T.nothingChecked : r.note === 'nothing-fixed' ? T.nothingFixed : null;
+    out.push(fixed ?? sub.static['could-not-verify'] ?? entry.outcomes['could-not-verify'], '');
   }
   return out;
 }
@@ -76,33 +100,69 @@ function fixLines(entry: CheckEntry): string[] {
   return out;
 }
 
-export function renderStaticReport(productName: string, manifestPath: string, report: StaticReport): string {
+/** The networks of the routes actually checked (Base Sepolia when none were checked). */
+function networksPart(report: StaticReport): string {
+  const networks = [...new Set(report.checkedRoutes.map((r) => r.network))];
+  if (!networks.length) return `${T.networkLabel} ${BASE_SEPOLIA}`;
+  return `${networks.length > 1 ? T.networksLabel : T.networkLabel} ${networks.join(', ')}`;
+}
+
+export interface PreviousManifests {
+  /** Earlier manifests that were read, as the seller named them. */
+  read: string[];
+  /** Earlier manifests that could not be read, with a linted reason. */
+  unreadable: { path: string; reason: string }[];
+}
+
+export function renderStaticReport(
+  productName: string,
+  manifestPath: string,
+  report: StaticReport,
+  previous: PreviousManifests = { read: [], unreadable: [] },
+): string {
   const out = [
     `# ${productName} check report`,
     '',
-    `${T.manifestLabel} \`${manifestPath}\` · ${T.routesReadLabel} ${report.routesRead} · ${T.networkLabel} ${BASE_SEPOLIA}`,
+    `${T.manifestLabel} \`${manifestPath}\` · ${T.routesReadLabel} ${report.routesRead} · ${networksPart(report)}`,
     '',
     T.fromManifest,
     '',
   ];
+  if (previous.read.length) out.push(T.previousLabel, ...previous.read.map((p) => `- \`${p}\``), '');
+  if (previous.unreadable.length) {
+    out.push(T.previousUnreadableHeading, ...previous.unreadable.map((p) => `- \`${p.path}\`: ${p.reason}`), '');
+  }
   if (report.mixedSchemes) out.push(T.schemesSeparate, '');
   if (!report.checkedRoutes.length) out.push(`**${report.routesRead ? T.nothingChecked : T.nothingFixed}**`, '');
   if (report.skippedRoutes.length) {
     out.push(T.skippedRoutes, ...report.skippedRoutes.map((r) => `- \`${r.route}\` (${r.network})`), '');
   }
+  if (report.otherNetworkRoutes.length) {
+    const lines = report.otherNetworkRoutes.map((r) => `- \`${r.route}\`${tierPart(r)} (${r.network})`);
+    out.push(T.otherNetworks, ...lines, '');
+  }
   if (report.notExported.length) {
-    out.push(
-      T.notExportedHeading,
-      ...report.notExported.map((n) => `- \`${n.route}\`: ${NOT_EXPORTED_TEXT[n.reason]}`),
-      '',
-    );
-    out.push(`**${T.notExportedOverall}**`, '');
+    const lines = report.notExported.map((n) => `- \`${n.route}\`: ${NOT_EXPORTED_TEXT[n.reason]}`);
+    out.push(T.notExportedHeading, ...lines, '', `**${T.notExportedOverall}**`, '');
   }
   if (report.perResourceRoutes.length) {
-    const pr = report.perResourceRoutes.map(
-      (r) => `- \`${r.route}\` (${T.baseIndexLabel} ${r.perResource?.baseIndex})`,
+    const lines = report.perResourceRoutes.map((r) => `- \`${r.route}\` (${manifestPayee(r)})`);
+    out.push(T.perResourceLeftOut, ...lines, '');
+  }
+  if (report.hasTiers) out.push(T.queryVariantsNotTried, '');
+  if (report.history.moved.length) {
+    const lines = report.history.moved.map(
+      ({ now, earlier }) =>
+        `- \`${now.route}\`${tierPart(now)} (${T.wasLabel} ${manifestPayee(earlier)}, ${T.nowLabel} ${manifestPayee(now)})`,
     );
-    out.push(T.perResourceLeftOut, ...pr, '');
+    out.push(T.movedHeading, ...lines, '');
+  }
+  if (report.history.reusedOtherTerms.length) {
+    const lines = report.history.reusedOtherTerms.map(
+      ({ now, earlier }) =>
+        `- \`${now.route}\`${tierPart(now)} (${manifestPayee(now)}; ${T.earlierGivenTo} \`${earlier.route}\`)`,
+    );
+    out.push(T.reusedOtherTermsHeading, ...lines, '');
   }
   out.push(`| ${T.outcomeCount} | ${T.count} |`, '|---|---|');
   for (const o of OUTCOMES)

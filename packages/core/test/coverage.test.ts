@@ -17,7 +17,9 @@ describe('coverage', () => {
       expect(sub, `${id} is not in the registry`).toBeDefined();
       expect(sub?.static, `${id} has no static text`).toBeDefined();
       expect(['static', 'both']).toContain(sub?.kind);
-      expect(sub?.static?.['found-no-problem-within-scheme'], `${id} has no within-scheme text`).toBeDefined();
+      if (['X402-03.cross-route', 'X402-03.dup-index', 'X402-03.index-range-overlap'].includes(id)) {
+        expect(sub?.static?.['found-no-problem-within-scheme'], `${id} has no within-scheme text`).toBeDefined();
+      }
     }
   });
 
@@ -30,8 +32,15 @@ describe('coverage', () => {
     }
   });
 
-  it('keeps X402-03 experimental while only 2 of its 9 sub-checks are built', () => {
+  it('keeps X402-03 experimental while 6 of its 9 sub-checks have a static part', () => {
     expect(getCheck('X402-03')?.status).toBe('experimental');
-    expect([...implemented].sort()).toEqual(['X402-03.cross-route', 'X402-03.dup-index']);
+    expect([...implemented].sort()).toEqual([
+      'X402-03.cross-route',
+      'X402-03.dup-index',
+      'X402-03.dynamic-per-pattern',
+      'X402-03.index-range-overlap',
+      'X402-03.stale-mapping',
+      'X402-03.tiers',
+    ]);
   });
 });

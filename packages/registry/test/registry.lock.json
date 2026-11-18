@@ -14,7 +14,7 @@
     "subChecks": ["X402-02.code-order", "X402-02.balance-race"]
   },
   "X402-03": {
-    "version": 3,
+    "version": 4,
     "status": "experimental",
     "kind": "both",
     "severity": "medium",

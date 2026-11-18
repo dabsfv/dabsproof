@@ -42,7 +42,11 @@ describe('Markdown report', () => {
 
   it('shared.json: lists 7 routes with shortened addresses under one finding', () => {
     const t = report('shared');
-    expect(count(t, '(`0x0000…0010`)')).toBe(7);
+    const crossRoute = t.slice(
+      t.indexOf('### X402-03.cross-route'),
+      t.indexOf('###', t.indexOf('### X402-03.cross-route') + 4),
+    );
+    expect(count(crossRoute, '(`0x0000…0010`)')).toBe(7);
     expect(count(t, `### ${REPORT_TEXT.howToFix}`)).toBe(1);
   });
 
@@ -53,11 +57,11 @@ describe('Markdown report', () => {
     expect(count(t, `### ${REPORT_TEXT.howToFix}`)).toBe(1);
   });
 
-  it('mainnet.json: says nothing was checked and lists the skipped routes', () => {
+  it('mainnet.json: checked from the manifest, with the other-networks line, and nothing skipped', () => {
     const t = report('mainnet');
-    expect(t).toContain(REPORT_TEXT.nothingChecked);
-    expect(t).toContain(REPORT_TEXT.skippedRoutes);
-    expect(t).not.toContain(`### ${REPORT_TEXT.howToFix}`);
+    expect(t).toContain(REPORT_TEXT.otherNetworks);
+    expect(t).not.toContain(REPORT_TEXT.nothingChecked);
+    expect(t).not.toContain(REPORT_TEXT.skippedRoutes);
   });
 
   it('an invalid manifest reads as could not verify', () => {
@@ -85,7 +89,7 @@ describe('step 1.1 report lines', () => {
   it('hd-per-resource: lists the per-item route as left out', () => {
     const t = report('hd-per-resource');
     expect(t).toContain(REPORT_TEXT.perResourceLeftOut);
-    expect(t).toContain('- `/api/item/[id]` (base address index 1000)');
+    expect(t).toContain('- `/api/item/[id]` (address indexes 1001 to 10999)');
   });
   it('tiers: labels the tier in the route line', () => {
     expect(report('tiers')).toContain('- `/api/tiered` (tier basic, `0x0000…0010`)');
@@ -123,7 +127,53 @@ describe('X402-03 version 3 texts in every static report', () => {
   it('per-item routes: the line says plainly that this check did not compare them', () => {
     const t = report('hd-per-resource');
     expect(t).toContain(
-      'These routes give each item its own address. This check did not compare them with any other route, and did not check whether their address ranges overlap:',
+      'These routes give each item its own address. X402-03.cross-route and X402-03.dup-index did not compare them with any other route; X402-03.index-range-overlap below says whether their address ranges could be compared:',
     );
+  });
+});
+
+describe('step 1.3 reports with an earlier manifest', () => {
+  const withPrevious = (name: string, prevName: string) => {
+    const now = loadManifest(fixturePath(name));
+    const prev = loadManifest(fixturePath(prevName));
+    if (!now.ok || !prev.ok) throw new Error('did not load');
+    return renderStaticReport(
+      brand.productName,
+      shownPath(name),
+      analyse(now.manifest, { previous: [prev.manifest] }),
+      {
+        read: [shownPath(prevName)],
+        unreadable: [],
+      },
+    );
+  };
+  it('stale-reuse with stale-previous: matches its snapshot, and names the earlier route', () => {
+    const t = withPrevious('stale-reuse', 'stale-previous');
+    expect(t.split(brand.productName).join('<productName>')).toMatchSnapshot();
+    expect(t).toContain('- `/api/beta` (address index 0; earlier given to `/api/alpha`)');
+    expect(t).toContain(REPORT_TEXT.movedHeading);
+  });
+  it('hd-moved with hd: matches its snapshot, and lists the moved route', () => {
+    const t = withPrevious('hd-moved', 'hd');
+    expect(t.split(brand.productName).join('<productName>')).toMatchSnapshot();
+    expect(t).toContain('- `/api/alpha` (was address index 0, now address index 5)');
+  });
+  it('tiered routes get the line saying query-string variants were not tried', () => {
+    expect(report('tiers-same-terms')).toContain(REPORT_TEXT.queryVariantsNotTried);
+    expect(report('hd')).not.toContain(REPORT_TEXT.queryVariantsNotTried);
+  });
+  it('never claims that query strings or variants unlock each other', () => {
+    for (const f of FIXTURES) expect(report(f)).not.toMatch(/unlock/i);
+  });
+});
+
+describe('the report heading names the networks actually checked', () => {
+  it('mainnet.json says eip155:8453, not Base Sepolia', () => {
+    const t = report('mainnet');
+    expect(t).toContain(`${REPORT_TEXT.networkLabel} eip155:8453`);
+    expect(t).not.toContain(`${REPORT_TEXT.networkLabel} eip155:84532`);
+  });
+  it('a Base Sepolia manifest still says eip155:84532', () => {
+    expect(report('hd')).toContain(`${REPORT_TEXT.networkLabel} eip155:84532`);
   });
 });

@@ -17,6 +17,7 @@ export const REPORT_TEXT = Object.freeze({
   manifestLabel: 'Manifest:',
   routesReadLabel: 'Routes read:',
   networkLabel: 'Network checked:',
+  networksLabel: 'Networks checked:',
   escalationLead: 'The severity could rise to',
   severityLabel: 'severity:',
   versionLabel: 'version',
@@ -26,10 +27,24 @@ export const REPORT_TEXT = Object.freeze({
   notExportedHeading: 'These routes could not be checked, because the configuration does not fix their payment terms:',
   notExportedOverall: 'Because of these routes, the overall result is could not verify.',
   perResourceLeftOut:
-    'These routes give each item its own address. This check did not compare them with any other route, and did not check whether their address ranges overlap:',
+    'These routes give each item its own address. X402-03.cross-route and X402-03.dup-index did not compare them with any other route; X402-03.index-range-overlap below says whether their address ranges could be compared:',
+  otherNetworks:
+    'These routes are on networks other than Base Sepolia. They were checked from your route manifest only; live checks run on Base Sepolia only:',
+  queryVariantsNotTried:
+    'Tiers chosen by details of the request, such as a query string, were not tried; that is part of the live checks.',
+  previousLabel: 'Earlier manifests compared:',
+  previousUnreadableHeading: 'These earlier manifests could not be read:',
+  movedHeading: 'These routes have a different payment address or index than in your earlier manifest:',
+  reusedOtherTermsHeading:
+    'These payment addresses or address indexes belonged to a different route in your earlier manifest, which had a different price or other terms:',
+  earlierGivenTo: 'earlier given to',
+  wasLabel: 'was',
+  nowLabel: 'now',
   tierLabel: 'tier',
   schemeLabel: 'scheme',
   addressIndexLabel: 'address index',
+  addressIndexesLabel: 'address indexes',
+  rangeTo: 'to',
   baseIndexLabel: 'base address index',
   outcomeCount: 'Outcome',
   count: 'Count',

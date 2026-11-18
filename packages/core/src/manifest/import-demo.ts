@@ -38,7 +38,13 @@ const DemoConfigSchema = z
 
 export type ImportResult = { ok: true; manifest: Manifest } | { ok: false; issues: string[] };
 
-export function importDemoConfig(json: unknown, options: { decimals: number }): ImportResult {
+export interface ImportOptions {
+  decimals: number;
+  /** The item ids a per-item route uses. The demo format has no id range, so none is guessed. */
+  perResourceIds?: { first: number; last: number };
+}
+
+export function importDemoConfig(json: unknown, options: ImportOptions): ImportResult {
   if (!isValidDecimals(options?.decimals)) return { ok: false, issues: [`decimals: ${M.decimals}`] };
   const parsed = DemoConfigSchema.safeParse(json);
   if (!parsed.success) return { ok: false, issues: describeIssues(parsed.error.issues) };
@@ -67,7 +73,12 @@ export function importDemoConfig(json: unknown, options: { decimals: number }): 
       } as ManifestRoute;
       if (e.payTo !== undefined) entry.address = e.payTo;
       else if (e.index !== undefined) entry.index = e.index;
-      else if (e.perResource) entry.perResource = { baseIndex: e.perResource.baseIndex };
+      else if (e.perResource) {
+        const ids = options.perResourceIds;
+        entry.perResource = ids
+          ? { baseIndex: e.perResource.baseIndex, firstId: ids.first, lastId: ids.last }
+          : { baseIndex: e.perResource.baseIndex };
+      }
       out.push(entry);
     }
   }

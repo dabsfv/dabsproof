@@ -34,18 +34,25 @@ describe('built command, run as a seller would (step 0.7 exit test)', () => {
     const r = exec('check', 'fixtures/manifests/shared.json');
     expect(r.status).toBe(1);
     expect(r.stdout).toContain('### X402-03.cross-route: found a problem (severity: medium)');
-    expect(r.stdout.split('(`0x0000…0010`)').length - 1).toBe(7);
+    const start = r.stdout.indexOf('### X402-03.cross-route');
+    const section = r.stdout.slice(start, r.stdout.indexOf('###', start + 4));
+    expect(section.split('(`0x0000…0010`)').length - 1).toBe(7);
   });
-  it('hd.json exits 0', () => {
-    expect(exec('check', 'fixtures/manifests/hd.json').status).toBe(0);
+  it('hd-per-resource.json exits 0 (moved here from hd.json in step 1.3)', () => {
+    expect(exec('check', 'fixtures/manifests/hd-per-resource.json').status).toBe(0);
+  });
+  it('hd.json exits 1: its dynamic route has one address for every item', () => {
+    const r = exec('check', 'fixtures/manifests/hd.json');
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain('### X402-03.dynamic-per-pattern: found a problem');
   });
   it('hd-dup-index.json exits 1', () => {
     expect(exec('check', 'fixtures/manifests/hd-dup-index.json').status).toBe(1);
   });
-  it('mainnet.json exits 2: nothing was checked', () => {
+  it('mainnet.json is checked from the manifest and exits 1, with the other-networks line', () => {
     const r = exec('check', 'fixtures/manifests/mainnet.json');
-    expect(r.status).toBe(2);
-    expect(r.stdout).toContain('Nothing was checked: only Base Sepolia is checked.');
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain('These routes are on networks other than Base Sepolia.');
   });
 });
 
@@ -61,7 +68,59 @@ describe('step 1.1 fixtures through the built command', () => {
   it('not-exported.json exits 2', () => {
     expect(exec('check', 'fixtures/manifests/not-exported.json').status).toBe(2);
   });
-  it('hd-per-resource.json exits 0', () => {
-    expect(exec('check', 'fixtures/manifests/hd-per-resource.json').status).toBe(0);
+});
+
+describe('step 1.3: --previous', () => {
+  it('stale-reuse.json with --previous stale-previous.json exits 1', () => {
+    const r = exec(
+      'check',
+      'fixtures/manifests/stale-reuse.json',
+      '--previous',
+      'fixtures/manifests/stale-previous.json',
+    );
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain('### X402-03.stale-mapping: found a problem');
+    expect(r.stdout).toContain('- `fixtures/manifests/stale-previous.json`');
   });
+  it('accepts --previous more than once', () => {
+    const r = exec(
+      'check',
+      'fixtures/manifests/stale-reuse.json',
+      '--previous',
+      'fixtures/manifests/stale-previous.json',
+      '--previous',
+      'fixtures/manifests/stale-reuse.json',
+    );
+    expect(r.status).toBe(1);
+  });
+  it('an unreadable earlier manifest is named, and makes the result could not verify (exit 2)', () => {
+    const r = exec(
+      'check',
+      'fixtures/manifests/dynamic-per-item.json',
+      '--previous',
+      'fixtures/manifests/no-such-file.json',
+    );
+    expect(r.status).toBe(2);
+    expect(r.stdout).toContain('These earlier manifests could not be read:');
+    expect(r.stdout).toContain('- `fixtures/manifests/no-such-file.json`: The manifest file could not be opened.');
+  });
+  it('usage errors: --previous without a file, or an unknown option', () => {
+    expect(run(['check', 'a.json', '--previous']).exitCode).toBe(2);
+    expect(run(['check', 'a.json', '--other', 'b.json']).exitCode).toBe(2);
+  });
+});
+
+describe('step 1.3: one fixture per finding', () => {
+  const cases: [string, number][] = [
+    ['range-overlap', 1],
+    ['range-unknown', 2],
+    ['dynamic-per-item', 0],
+    ['tiers-same-terms', 1],
+    ['hd-moved', 1],
+  ];
+  for (const [f, code] of cases) {
+    it(`${f}.json exits ${code}`, () => {
+      expect(exec('check', `fixtures/manifests/${f}.json`).status).toBe(code);
+    });
+  }
 });

@@ -171,8 +171,7 @@ describe('X402-03 version 3 is append-only', () => {
       'Fewer than two of the routes checked share the same payment scheme, network, asset and price, so there was nothing to compare.',
     );
   });
-  it('is version 3 with a changelog line for it', () => {
-    expect(c?.version).toBe(3);
-    expect(c?.changelog.at(-1)?.version).toBe(3);
+  it('has a changelog line for version 3', () => {
+    expect(c?.changelog.find((l) => l.version === 3)?.change).toContain('within one payment scheme');
   });
 });

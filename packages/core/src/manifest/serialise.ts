@@ -15,7 +15,11 @@ export function serialiseManifest(m: Manifest): string {
   const out: Record<string, unknown> = {};
   if (m.$comment !== undefined) out.$comment = m.$comment;
   out.manifestVersion = m.manifestVersion;
-  out.routes = m.routes.map((r: ManifestRoute) => ordered(r, ROUTE_KEYS));
+  out.routes = m.routes.map((r: ManifestRoute) => {
+    const o = ordered(r, ROUTE_KEYS);
+    if (r.perResource) o.perResource = ordered(r.perResource, ['baseIndex', 'firstId', 'lastId']);
+    return o;
+  });
   if (m.notExported !== undefined)
     out.notExported = m.notExported.map((n: NotExported) => ordered(n, ['route', 'reason']));
   return `${JSON.stringify(out, null, 2)}\n`;

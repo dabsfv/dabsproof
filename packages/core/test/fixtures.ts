@@ -11,6 +11,13 @@ export const FIXTURES = [
   'tiers',
   'schemes',
   'not-exported',
+  'range-overlap',
+  'range-unknown',
+  'dynamic-per-item',
+  'tiers-same-terms',
+  'stale-previous',
+  'stale-reuse',
+  'hd-moved',
 ] as const;
 export const DEMO_FIXTURES = ['shared', 'hd', 'hd-dup-index', 'hd-per-resource', 'hd-moved'] as const;
 

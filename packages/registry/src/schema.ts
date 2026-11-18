@@ -100,6 +100,8 @@ export const StaticTextSchema = z
     // Existing texts are never edited; reports use these when present.
     'found-no-problem-within-scheme': EndsWithCoverage.optional(),
     'not-applicable': Text.optional(),
+    // Added in X402-03 version 4.
+    'could-not-verify': Text.optional(),
   })
   .strict();
 
@@ -111,7 +113,11 @@ export const AppliesToSchema = z
   .object({
     x402Versions: z.array(z.literal(2)).min(1),
     schemes: z.array(z.enum(['exact', 'upto'])).min(1),
+    // Live runs: Base Sepolia only.
     networks: z.array(z.literal(BASE_SEPOLIA)).min(1),
+    // Static analysis (reading a manifest, sending nothing). Added in X402-03 version 4. When absent,
+    // static analysis uses networks.
+    staticNetworks: z.union([z.literal('any-evm'), z.array(z.string().regex(/^eip155:\d+$/)).min(1)]).optional(),
   })
   .strict();
 

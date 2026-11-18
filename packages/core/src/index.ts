@@ -11,12 +11,14 @@ export {
   type RouteConfigLike,
   type RoutesConfigLike,
 } from './manifest/export.js';
-export { type ImportResult, importDemoConfig } from './manifest/import-demo.js';
+export { type ImportOptions, type ImportResult, importDemoConfig } from './manifest/import-demo.js';
 export { type LoadResult, loadManifest, MAX_MANIFEST_BYTES } from './manifest/load.js';
 export { MANIFEST_TEXT } from './manifest/messages.js';
 export { dollarsToUnits, type PriceResult } from './manifest/price.js';
 export {
   describeIssues,
+  isDynamic,
+  MAX_INDEX,
   type Manifest,
   type ManifestRoute,
   ManifestSchema,
@@ -28,10 +30,11 @@ export {
   type Scheme,
 } from './manifest/schema.js';
 export { serialiseManifest } from './manifest/serialise.js';
-export { renderInvalidManifest, renderStaticReport, shortAddress } from './report/markdown.js';
+export { type PreviousManifests, renderInvalidManifest, renderStaticReport, shortAddress } from './report/markdown.js';
 export { REPORT_TEXT, reportSentences } from './report/text.js';
-export type { CheckResult, ResultGroup, RouteRef } from './results/types.js';
-export { analyse, exitCodeFor, type StaticReport } from './static/analyse.js';
+export type { CheckResult, ResultGroup, RouteRef, StaticContext } from './results/types.js';
+export { type AnalyseOptions, analyse, exitCodeFor, type StaticReport, staticNetworkFilter } from './static/analyse.js';
+export { type HistoryChanges, historyChanges } from './static/checks/x402-03.js';
 export { STATIC_IMPLEMENTATIONS } from './static/implementations.js';
 
 export function summary(): string {

@@ -70,23 +70,23 @@ describe('X402-03.dup-index', () => {
   });
 });
 
-describe('networks', () => {
-  it('checks nothing in mainnet.json: could not verify, exit 2', () => {
+describe('networks (static analysis reads any EVM network; live stays Base Sepolia)', () => {
+  it('checks mainnet.json from the manifest and lists its routes as on another network', () => {
     const a = analyse(load('mainnet'));
-    expect(a.checkedRoutes).toHaveLength(0);
-    expect(a.skippedRoutes).toHaveLength(7);
-    expect(a.results.map((x) => x.outcome)).toEqual(['could-not-verify', 'could-not-verify']);
-    expect(a.overall).toBe('could-not-verify');
-    expect(a.exitCode).toBe(2);
+    expect(a.checkedRoutes).toHaveLength(7);
+    expect(a.skippedRoutes).toHaveLength(0);
+    expect(a.otherNetworkRoutes).toHaveLength(7);
+    expect(result(load('mainnet'), 'cross-route').outcome).toBe('found-a-problem');
+    expect(a.exitCode).toBe(1);
   });
-  it('judges a mixed manifest on the Base Sepolia routes only, and lists the others as skipped', () => {
+  it('compares routes only within one network', () => {
     const x = m(
       r('/a', { address: fake(10) }),
       r('/b', { address: fake(10) }),
       r('/c', { address: fake(10), network: 'eip155:8453' }),
     );
-    expect(analyse(x).skippedRoutes.map((s) => s.route)).toEqual(['/c']);
-    expect(result(x, 'cross-route').groups[0]?.routes.map((s) => s.route)).toEqual(['/a', '/b']);
+    expect(analyse(x).otherNetworkRoutes.map((s) => s.route)).toEqual(['/c']);
+    expect(result(x, 'cross-route').groups.map((g) => g.routes.map((s) => s.route))).toEqual([['/a', '/b']]);
   });
 });
 
@@ -101,9 +101,10 @@ describe('exit codes', () => {
   it('0 only when no problem was found and nothing is unverified', () => {
     expect(exitCodeFor(o('found-no-problem', 'not-applicable'))).toBe(0);
   });
-  it('matches §8: shared.json exits 1, hd.json exits 0', () => {
+  it('shared.json exits 1; hd-per-resource.json exits 0 (the step 0.7 "exits 0" check, moved in step 1.3); hd.json exits 1', () => {
     expect(analyse(load('shared')).exitCode).toBe(1);
-    expect(analyse(load('hd')).exitCode).toBe(0);
+    expect(analyse(load('hd-per-resource')).exitCode).toBe(0);
+    expect(analyse(load('hd')).exitCode).toBe(1);
     expect(analyse(load('hd-dup-index')).exitCode).toBe(1);
   });
 });
