@@ -33,7 +33,7 @@ The read and Bash denials in .claude/settings.json are guardrails, not a guarant
 - Label every live result with its settlement path: public-facilitator, local-facilitator, own-relayer or seller-facilitator. A facilitator outage is "could not verify", never "found a problem".
 - Keep tests independent of the public facilitator: CI uses the local fork and the local facilitator.
 - Store response bodies as SHA-256 and length; keep excerpts only when explicitly opted in.
-- Results not yet re-run are "could not verify" (currently: the 17 Nov seller-nonce result).
+- Results not yet re-run are "could not verify" (currently: the 17 Nov experiment, until step 1.12).
 - During Phase 0, stop after every step and report what changed, which files, and the output of git status --short.
 
 ## Stack
