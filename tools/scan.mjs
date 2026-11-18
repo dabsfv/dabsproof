@@ -7,6 +7,9 @@
 //   node tools/scan.mjs pre-push <remote> <url>   check the refs (on stdin) and scan every commit being pushed
 //   node tools/scan.mjs files <path>...           scan files in the working tree
 //   node tools/scan.mjs --check-config            load the config and report counts only
+//   node tools/scan.mjs ci                        CI only: patterns and file names on every tracked file.
+//                                                 It reads no config, so the by-value scan and the deny-list
+//                                                 do not run, and it says so. No hook may call this mode.
 //
 // Config, outside the repo, readable by the owner only (chmod 600):
 //   ~/.config/dabsproof/secret-sources.txt  required: one file path per line; the secret values in
@@ -369,10 +372,32 @@ function scanFiles(paths, cfg) {
   return finish(hits, 'files');
 }
 
+// CI has no deny-list and no secret values, so this mode reads no config at all.
+function ciScan() {
+  say('patterns only, by-value scan did not run');
+  say('deny-list check did not run');
+  const cfg = { deny: [], values: [] };
+  const files = git(['ls-files', '-z']).toString('utf8').split('\0').filter(Boolean);
+  const hits = [];
+  for (const f of files) {
+    let st;
+    try {
+      st = fs.lstatSync(f);
+    } catch {
+      say(`notice: ${f} is tracked but missing from the working tree, so it was not scanned.`);
+      continue;
+    }
+    const content = st.isSymbolicLink() ? Buffer.from(fs.readlinkSync(f)) : st.isFile() ? fs.readFileSync(f) : null;
+    addFile(hits, f, content, cfg);
+  }
+  return finish(hits, `ci scan (patterns only, ${files.length} tracked files)`);
+}
+
 // ---------- main ----------
 
 function main() {
   const [mode, ...args] = process.argv.slice(2);
+  if (mode === 'ci') return ciScan();
   if (CONFIG_OVERRIDE) say('using the config folder named by DABSPROOF_CONFIG_DIR (test mode).');
   const deny = loadDenyList();
   if (!deny.length) say('no deny-list loaded');
@@ -392,7 +417,7 @@ function main() {
     case 'files':
       return scanFiles(args, cfg);
     default:
-      say('usage: scan.mjs pre-commit | commit-msg <file> | pre-push <remote> <url> | files <path>... | --check-config');
+      say('usage: scan.mjs pre-commit | commit-msg <file> | pre-push <remote> <url> | files <path>... | --check-config | ci');
       return 2;
   }
 }

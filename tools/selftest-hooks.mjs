@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // Self-tests for the leak protection: .githooks/*, tools/scan.mjs and tools/check-identity.mjs.
 // Run from anywhere: node tools/selftest-hooks.mjs   (--keep keeps the temp folder for inspection)
+// In CI: node tools/selftest-hooks.mjs --ci   skips the tests that need the maintainer's machine
+// (core-hooks-path, live-config) and names them in the summary.
 //
 // Everything runs in throwaway git repos in the system temp folder, with a fake config and git
 // isolated from your global config. Fake secrets are generated at run time, so this file holds
@@ -26,6 +28,7 @@ const HOOK_NAMES = ['pre-commit', 'commit-msg', 'pre-push'];
 const ID = { name: 'dabsfv', email: 'dabsfv@users.noreply.github.com' };
 const HOME = os.homedir();
 const KEEP = process.argv.includes('--keep');
+const CI = process.argv.includes('--ci');
 const TMP = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dabsproof-selftest-')));
 if (HOOKS_DIR.includes("'")) throw new Error('the repo path contains a quote; move the repo');
 
@@ -62,7 +65,12 @@ const tail = (r) => (leaked(r.out) ? '(output withheld: it contained fake secret
 
 const results = [];
 const notes = [];
-function test(name, fn) {
+// machine: true marks a test that needs the maintainer's machine; --ci skips it by name.
+function test(name, fn, { machine = false } = {}) {
+  if (CI && machine) {
+    results.push({ skipped: true, name });
+    return;
+  }
   try {
     fn();
     results.push({ ok: true, name });
@@ -190,7 +198,7 @@ test('core-hooks-path: this repo has core.hooksPath set to .githooks', () => {
   const v = r.out.trim();
   check(r.code === 0 && v, 'core.hooksPath is not set. Run: git config core.hooksPath .githooks');
   check(v === '.githooks' || v === '.githooks/' || path.resolve(REPO, v) === HOOKS_DIR, 'core.hooksPath is set, but not to .githooks');
-});
+}, { machine: true });
 
 test('hook-files: the three hooks and the tools exist, and the hooks are executable', () => {
   for (const h of HOOK_NAMES) {
@@ -492,14 +500,72 @@ test('live-config: the real config loads (counts and notices only)', () => {
   const r = runIn(REPO, process.execPath, [SCAN, '--check-config'], cleanEnv());
   for (const line of r.out.trim().split('\n')) notes.push(`live-config: ${line}`);
   check(r.code === 0, 'the scanner refused to load the real config (see the notes)');
+}, { machine: true });
+
+// ---------- scan.mjs ci (patterns only), in both directions ----------
+
+const CI_NOTICE = 'patterns only, by-value scan did not run';
+
+test('ci-scan-finds-patterns: ci mode blocks a planted fake key and says the by-value scan did not run', () => {
+  const r = makeRepo(CFG, { hooks: false });
+  r.write('config.ts', `const k = "${FAKE.key}";\n`);
+  r.must(['add', '--', 'config.ts']);
+  const res = runIn(r.dir, process.execPath, [SCAN, 'ci'], cleanEnv());
+  blocked(res, 'private-key-hex', 'ci mode');
+  check(res.out.includes(CI_NOTICE), `the "${CI_NOTICE}" notice is missing`);
+});
+
+test('ci-scan-reads-no-config: ci mode ignores the deny-list and secret values, even when a config is named', () => {
+  const r = makeRepo(CFG, { hooks: false });
+  r.write('notes.md', `token ${FAKE.token} and ${FAKE.deny}\n`);
+  r.must(['add', '--', 'notes.md']);
+  for (const env of [cleanEnv({ DABSPROOF_CONFIG_DIR: CFG }), cleanEnv({ DABSPROOF_CONFIG_DIR: CFG_NO_SOURCES })]) {
+    const res = runIn(r.dir, process.execPath, [SCAN, 'ci'], env);
+    check(res.code === 0, `ci mode used the config (or refused without one): ${tail(res)}`);
+    check(res.out.includes(CI_NOTICE) && res.out.includes('deny-list check did not run'), 'the ci notices are missing');
+    check(!res.out.includes('test mode'), 'ci mode looked at DABSPROOF_CONFIG_DIR');
+  }
+});
+
+test('ci-scan-never-in-hooks: every hook calls scan.mjs only in a hook mode, never ci', () => {
+  const allowed = new Set(['pre-commit', 'commit-msg', 'pre-push']);
+  for (const h of HOOK_NAMES) {
+    const text = fs.readFileSync(path.join(HOOKS_DIR, h), 'utf8');
+    const calls = [...text.matchAll(/scan\.mjs["']?\s+(\S+)/g)].map((m) => m[1].replace(/["']/g, ''));
+    check(calls.length > 0, `.githooks/${h} does not call the scanner`);
+    const bad = calls.filter((m) => !allowed.has(m));
+    check(!bad.length, `.githooks/${h} calls scan.mjs with: ${bad.join(', ')}`);
+    check(!/\bci\b/.test(text.replace(/^#.*$/gm, '')), `.githooks/${h} mentions ci outside a comment`);
+  }
+  const identity = fs.readFileSync(path.join(REPO, 'tools', 'check-identity.mjs'), 'utf8');
+  check(!identity.includes('scan.mjs'), 'check-identity.mjs calls the scanner');
+});
+
+test('ci-scan-hooks-still-need-config: with no secret-sources.txt the hooks refuse, they do not fall back to patterns only', () => {
+  const r = makeRepo(CFG_NO_SOURCES);
+  const res = r.commit('README.md', 'hello\n');
+  blocked(res, 'secret-sources.txt is missing', 'hook without sources');
+  check(!res.out.includes(CI_NOTICE), 'a hook ran the patterns-only scan');
+  check(r.count() === 0, 'a commit was created');
 });
 
 // ---------- report ----------
 
 if (!KEEP) fs.rmSync(TMP, { recursive: true, force: true });
-for (const r of results) process.stdout.write(`${r.ok ? 'PASS' : 'FAIL'}  ${r.name}${r.ok ? '' : `\n      ${r.why}`}\n`);
+for (const r of results) {
+  const label = r.skipped ? 'SKIP' : r.ok ? 'PASS' : 'FAIL';
+  const extra = r.skipped ? "  (needs the maintainer's machine)" : r.ok ? '' : `\n      ${r.why}`;
+  process.stdout.write(`${label}  ${r.name}${extra}\n`);
+}
 for (const n of notes) process.stdout.write(`note  ${n}\n`);
-const failed = results.filter((r) => !r.ok).length;
-process.stdout.write(`\n${results.length - failed} passed, ${failed} failed.${KEEP ? ` Temp folder kept: ${TMP}` : ''}\n`);
+const skipped = results.filter((r) => r.skipped);
+const ran = results.filter((r) => !r.skipped);
+const failed = ran.filter((r) => !r.ok).length;
+const skipText = skipped.length
+  ? `${skipped.length} skipped: need the maintainer's machine (${skipped.map((r) => r.name.split(':')[0]).join(', ')})`
+  : '0 skipped';
+process.stdout.write(
+  `\n${ran.length} run, ${skipText}. Of those run: ${ran.length - failed} passed, ${failed} failed.${KEEP ? ` Temp folder kept: ${TMP}` : ''}\n`,
+);
 process.stdout.write('Live enforcement of the settings.json denials is not tested here; probe it from a Claude Code session.\n');
 process.exitCode = failed ? 1 : 0;

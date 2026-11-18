@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TURBO_TELEMETRY_DISABLED: "1"
+      DO_NOT_TRACK: "1"
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+      COREPACK_ENABLE_AUTO_PIN: "0"
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.16.0
+          package-manager-cache: false
+
+      - name: Enable pnpm through corepack (version and hash come from packageManager)
+        run: corepack enable pnpm
+
+      - name: Install (install scripts off)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Wording lint - NOT IMPLEMENTED YET (step 0.6), nothing checked
+        run: |
+          echo "::warning title=Wording lint not implemented::The wording lint does not exist yet; it arrives in step 0.6. Nothing was checked. This step is not a pass."
+          echo "NOT IMPLEMENTED: the wording lint did not run. Nothing was checked."
+
+      - name: Lint (Biome)
+        run: pnpm lint
+
+      - name: Leak scan - patterns only (by-value scan and deny-list run only on the maintainer's machine)
+        run: node tools/scan.mjs ci
+
+      - name: Hook self-tests (tests that need the maintainer's machine are skipped and named)
+        run: node tools/selftest-hooks.mjs --ci
+
+      - name: Build
+        run: pnpm build
