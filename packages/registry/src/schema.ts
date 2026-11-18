@@ -88,7 +88,18 @@ export const RemediationSchema = z
   })
   .strict();
 
-export const SubCheckSchema = z.object({ id: z.string(), title: Text, kind: KindSchema }).strict();
+// Text for a result read from configuration (a route manifest) rather than a live run. A live
+// outcome sentence must never be shown for a result that no payment confirmed.
+export const StaticTextSchema = z
+  .object({
+    'found-a-problem': Text,
+    'found-no-problem': Text.refine((s) => s.endsWith(` ${COVERS_ONLY}`), `must end with "${COVERS_ONLY}"`),
+  })
+  .strict();
+
+export const SubCheckSchema = z
+  .object({ id: z.string(), title: Text, kind: KindSchema, static: StaticTextSchema.optional() })
+  .strict();
 
 export const AppliesToSchema = z
   .object({

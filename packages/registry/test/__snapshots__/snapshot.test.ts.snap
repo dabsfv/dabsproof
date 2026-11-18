@@ -294,6 +294,24 @@ exports[`snapshots > JSON Schema 1`] = `
                 ],
                 "type": "string",
               },
+              "static": {
+                "additionalProperties": false,
+                "properties": {
+                  "found-a-problem": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "found-no-problem": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "found-a-problem",
+                  "found-no-problem",
+                ],
+                "type": "object",
+              },
               "title": {
                 "minLength": 1,
                 "type": "string",
@@ -694,6 +712,11 @@ exports[`snapshots > registry 1`] = `
         "date": "2026-11-18",
         "version": 1,
       },
+      {
+        "change": "Added the text shown for .cross-route and .dup-index when a result comes from a route manifest rather than a live run.",
+        "date": "2026-11-18",
+        "version": 2,
+      },
     ],
     "escalation": [
       {
@@ -739,11 +762,19 @@ exports[`snapshots > registry 1`] = `
       {
         "id": "X402-03.cross-route",
         "kind": "both",
+        "static": {
+          "found-a-problem": "These routes share the same network, asset, price and payment address in your route manifest. On our test shop, that was enough for a payment made for one route to work on another. This report sent no payment, so it has not confirmed this for your service.",
+          "found-no-problem": "No two routes in your route manifest share the same network, asset, price and payment address. This covers only what this check tried.",
+        },
         "title": "A payment made for one route is accepted by another",
       },
       {
         "id": "X402-03.dup-index",
         "kind": "static",
+        "static": {
+          "found-a-problem": "These routes are given the same address index in your route manifest, so they would be paid to the same address. On our test shop, routes that shared a network, asset, price and payment address accepted each other's payments. This report sent no payment, so it has not confirmed this for your service.",
+          "found-no-problem": "No two routes in your route manifest are given the same address index. This covers only what this check tried.",
+        },
         "title": "Two routes are given the same address index",
       },
       {
@@ -783,7 +814,7 @@ exports[`snapshots > registry 1`] = `
       },
     ],
     "title": "A payment is tied to the route it was made for",
-    "version": 1,
+    "version": 2,
     "whatItTests": "Whether a payment made for one paid route can be used on a different paid route that has the same price and terms.",
     "whatSomeoneCouldDo": "Pay for one route and use that payment to get a different route with the same price, or use one payment across many routes.",
   },

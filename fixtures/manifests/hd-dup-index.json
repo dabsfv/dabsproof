@@ -1,0 +1,55 @@
+{
+  "$comment": "Test fixture. Every address in this file is fake (0x, zeros and a counter). None is a real address. Mistake on purpose: the second route repeats the first route's index.",
+  "manifestVersion": 1,
+  "routes": [
+    {
+      "route": "/api/alpha",
+      "price": "1000",
+      "asset": "0x0000000000000000000000000000000000000001",
+      "network": "eip155:84532",
+      "index": 0
+    },
+    {
+      "route": "/api/beta",
+      "price": "1000",
+      "asset": "0x0000000000000000000000000000000000000001",
+      "network": "eip155:84532",
+      "index": 0
+    },
+    {
+      "route": "/api/gamma",
+      "price": "1000",
+      "asset": "0x0000000000000000000000000000000000000001",
+      "network": "eip155:84532",
+      "index": 2
+    },
+    {
+      "route": "/api/item/[id]",
+      "price": "1000",
+      "asset": "0x0000000000000000000000000000000000000001",
+      "network": "eip155:84532",
+      "index": 3
+    },
+    {
+      "route": "/api/tiered",
+      "price": "1000",
+      "asset": "0x0000000000000000000000000000000000000001",
+      "network": "eip155:84532",
+      "index": 4
+    },
+    {
+      "route": "/api/agg/seller1",
+      "price": "1000",
+      "asset": "0x0000000000000000000000000000000000000001",
+      "network": "eip155:84532",
+      "index": 10
+    },
+    {
+      "route": "/api/agg/seller2",
+      "price": "1000",
+      "asset": "0x0000000000000000000000000000000000000001",
+      "network": "eip155:84532",
+      "index": 11
+    }
+  ]
+}

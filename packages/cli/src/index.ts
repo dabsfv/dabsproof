@@ -1,6 +1,2 @@
-// The free CLI. Placeholder until step 0.7 adds the check command.
-import { summary } from '@dabsproof/core';
-
-export function main(): string {
-  return summary();
-}
+// The free CLI. The command itself is in bin.ts; run() is exported for tests and callers.
+export { type RunResult, run, usage } from './run.js';

@@ -9,6 +9,9 @@
       "import": "./dist/index.js"
     }
   },
+  "bin": {
+    "dabsproof": "./dist/bin.js"
+  },
   "files": [
     "dist"
   ],

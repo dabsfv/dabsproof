@@ -23,6 +23,10 @@ export function registryText(entry: RegistryEntry): TextPart[] {
   add('whatSomeoneCouldDo', entry.whatSomeoneCouldDo);
   for (const [i, e] of (entry.escalation ?? []).entries()) add(`escalation[${i}].when`, e.when);
   for (const s of entry.subChecks) add(`${s.id} title`, s.title);
+  for (const s of entry.subChecks) {
+    if (!s.static) continue;
+    for (const [outcome, text] of Object.entries(s.static)) add(`${s.id} static.${outcome}`, text);
+  }
   for (const [outcome, text] of Object.entries(entry.outcomes)) add(`outcomes.${outcome}`, text);
   add('remediation.summary', entry.remediation.summary);
   for (const [i, t] of entry.remediation.steps.entries()) add(`remediation.steps[${i}]`, t);

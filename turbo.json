@@ -22,6 +22,11 @@
       "dependsOn": [
         "build"
       ]
+    },
+    "@dabsproof/cli#test": {
+      "dependsOn": [
+        "build"
+      ]
     }
   }
 }

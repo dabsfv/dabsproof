@@ -3,7 +3,7 @@ import { BASE_SEPOLIA, COULD_NOT_VERIFY, COVERS_ONLY, FIRST_DATE, FIRST_VERSION,
 
 export const x402_03 = {
   id: 'X402-03',
-  version: 1,
+  version: 2,
   status: 'experimental',
   title: 'A payment is tied to the route it was made for',
   severity: 'medium',
@@ -36,8 +36,26 @@ export const x402_03 = {
     notAFix: ["Different prices alone. Two routes with the same price still accept each other's payments."],
   },
   subChecks: [
-    { id: 'X402-03.cross-route', title: 'A payment made for one route is accepted by another', kind: 'both' },
-    { id: 'X402-03.dup-index', title: 'Two routes are given the same address index', kind: 'static' },
+    {
+      id: 'X402-03.cross-route',
+      title: 'A payment made for one route is accepted by another',
+      kind: 'both',
+      static: {
+        'found-a-problem':
+          'These routes share the same network, asset, price and payment address in your route manifest. On our test shop, that was enough for a payment made for one route to work on another. This report sent no payment, so it has not confirmed this for your service.',
+        'found-no-problem': `No two routes in your route manifest share the same network, asset, price and payment address. ${COVERS_ONLY}`,
+      },
+    },
+    {
+      id: 'X402-03.dup-index',
+      title: 'Two routes are given the same address index',
+      kind: 'static',
+      static: {
+        'found-a-problem':
+          "These routes are given the same address index in your route manifest, so they would be paid to the same address. On our test shop, routes that shared a network, asset, price and payment address accepted each other's payments. This report sent no payment, so it has not confirmed this for your service.",
+        'found-no-problem': `No two routes in your route manifest are given the same address index. ${COVERS_ONLY}`,
+      },
+    },
     {
       id: 'X402-03.dynamic-per-pattern',
       title: 'Every page of a dynamic route shares one payment address',
@@ -51,5 +69,13 @@ export const x402_03 = {
     { id: 'X402-03.shared-payout', title: 'Several routes pay to one address', kind: 'static' },
   ],
   references: [],
-  changelog: [{ version: 1, date: FIRST_DATE, change: FIRST_VERSION }],
+  changelog: [
+    { version: 1, date: FIRST_DATE, change: FIRST_VERSION },
+    {
+      version: 2,
+      date: FIRST_DATE,
+      change:
+        'Added the text shown for .cross-route and .dup-index when a result comes from a route manifest rather than a live run.',
+    },
+  ],
 } satisfies CheckInput;
