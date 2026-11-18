@@ -1,4 +1,5 @@
 // pnpm lint:wording — runs the wording lint over every registry entry. Exit 1 on any problem.
+import { EVM_TEXT } from '@dabsproof/evm';
 import { checks } from '@dabsproof/registry';
 import { reportSentences } from '../report/text.js';
 import { registryText } from './registry-text.js';
@@ -16,7 +17,7 @@ for (const entry of checks) {
     }
   }
 }
-for (const [i, text] of reportSentences().entries()) {
+for (const [i, text] of [...reportSentences(), ...Object.values(EVM_TEXT)].entries()) {
   parts++;
   for (const p of lintWording(text)) {
     problems++;
@@ -29,5 +30,5 @@ if (problems) {
   process.exit(1);
 }
 console.log(
-  `wording lint: this check found no problem in ${parts} texts (${checks.length} registry entries and ${reportSentences().length} report and manifest sentences).`,
+  `wording lint: this check found no problem in ${parts} texts (${checks.length} registry entries, ${reportSentences().length} report and manifest sentences and ${Object.values(EVM_TEXT).length} evm sentences).`,
 );

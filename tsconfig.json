@@ -1,9 +1,20 @@
 {
   "files": [],
   "references": [
-    { "path": "packages/brand" },
-    { "path": "packages/registry" },
-    { "path": "packages/core" },
-    { "path": "packages/cli" }
+    {
+      "path": "packages/brand"
+    },
+    {
+      "path": "packages/evm"
+    },
+    {
+      "path": "packages/registry"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/cli"
+    }
   ]
 }

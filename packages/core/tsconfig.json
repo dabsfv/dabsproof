@@ -6,5 +6,15 @@
     "tsBuildInfoFile": "dist/types/.tsbuildinfo"
   },
   "include": ["src"],
-  "references": [{ "path": "../brand" }, { "path": "../registry" }]
+  "references": [
+    {
+      "path": "../brand"
+    },
+    {
+      "path": "../registry"
+    },
+    {
+      "path": "../evm"
+    }
+  ]
 }
