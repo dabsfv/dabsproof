@@ -46,7 +46,9 @@
       "Bash(git commit -qn*)",
       "Bash(git commit * -qn*)",
       "Bash(*--no-veri*)",
-      "Bash(*hooksPath*)"
+      "Bash(*hooksPath*)",
+      "Read(//**/.env)",
+      "Read(//**/.env.*)"
     ]
   }
 }
