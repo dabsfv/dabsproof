@@ -1,0 +1,521 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`JSON format > JSON Schema 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "checkId": {
+                "type": "string",
+              },
+              "fix": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "escalation": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "guidance": {
+                        "type": "string",
+                      },
+                      "notAFix": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "steps": {
+                        "items": {
+                          "type": "string",
+                        },
+                        "type": "array",
+                      },
+                      "summary": {
+                        "type": "string",
+                      },
+                      "whatSomeoneCouldDo": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "whatSomeoneCouldDo",
+                      "escalation",
+                      "summary",
+                      "steps",
+                      "guidance",
+                      "notAFix",
+                    ],
+                    "type": "object",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "results": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "groups": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "routes": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "earlierRoute": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                                "payee": {
+                                  "type": "string",
+                                },
+                                "route": {
+                                  "type": "string",
+                                },
+                                "scheme": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                                "tier": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                              },
+                              "required": [
+                                "route",
+                                "tier",
+                                "scheme",
+                                "payee",
+                                "earlierRoute",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                        },
+                        "required": [
+                          "routes",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "label": {
+                      "type": "string",
+                    },
+                    "outcome": {
+                      "enum": [
+                        "found-a-problem",
+                        "found-no-problem",
+                        "could-not-verify",
+                        "not-applicable",
+                      ],
+                      "type": "string",
+                    },
+                    "routesHeading": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "sameMistake": {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "routes": {
+                            "items": {
+                              "additionalProperties": false,
+                              "properties": {
+                                "earlierRoute": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                                "payee": {
+                                  "type": "string",
+                                },
+                                "route": {
+                                  "type": "string",
+                                },
+                                "scheme": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                                "tier": {
+                                  "type": [
+                                    "string",
+                                    "null",
+                                  ],
+                                },
+                              },
+                              "required": [
+                                "route",
+                                "tier",
+                                "scheme",
+                                "payee",
+                                "earlierRoute",
+                              ],
+                              "type": "object",
+                            },
+                            "type": "array",
+                          },
+                          "text": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "text",
+                          "routes",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    "severity": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "subCheckId": {
+                      "type": "string",
+                    },
+                    "text": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "title": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "subCheckId",
+                    "title",
+                    "outcome",
+                    "label",
+                    "severity",
+                    "text",
+                    "routesHeading",
+                    "groups",
+                    "sameMistake",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "status": {
+                "type": "string",
+              },
+              "title": {
+                "type": "string",
+              },
+              "version": {
+                "maximum": 9007199254740991,
+                "minimum": -9007199254740991,
+                "type": "integer",
+              },
+            },
+            "required": [
+              "checkId",
+              "title",
+              "version",
+              "status",
+              "results",
+              "fix",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "counts": {
+          "additionalProperties": false,
+          "properties": {
+            "could-not-verify": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            "found-a-problem": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            "found-no-problem": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            "not-applicable": {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+          },
+          "required": [
+            "found-a-problem",
+            "found-no-problem",
+            "could-not-verify",
+            "not-applicable",
+          ],
+          "type": "object",
+        },
+        "coverage": {
+          "type": "string",
+        },
+        "exitCode": {
+          "anyOf": [
+            {
+              "const": 0,
+              "type": "number",
+            },
+            {
+              "const": 1,
+              "type": "number",
+            },
+            {
+              "const": 2,
+              "type": "number",
+            },
+          ],
+        },
+        "formatVersion": {
+          "const": 1,
+          "type": "number",
+        },
+        "information": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "items": {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              "text": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "text",
+              "items",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "kind": {
+          "const": "report",
+          "type": "string",
+        },
+        "manifest": {
+          "type": "string",
+        },
+        "networksChecked": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "notes": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "overall": {
+          "additionalProperties": false,
+          "properties": {
+            "label": {
+              "type": "string",
+            },
+            "outcome": {
+              "enum": [
+                "found-a-problem",
+                "found-no-problem",
+                "could-not-verify",
+                "not-applicable",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "outcome",
+            "label",
+          ],
+          "type": "object",
+        },
+        "routesRead": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "formatVersion",
+        "kind",
+        "manifest",
+        "routesRead",
+        "networksChecked",
+        "overall",
+        "exitCode",
+        "counts",
+        "notes",
+        "information",
+        "checks",
+        "coverage",
+      ],
+      "type": "object",
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "coverage": {
+          "type": "string",
+        },
+        "exitCode": {
+          "const": 2,
+          "type": "number",
+        },
+        "formatVersion": {
+          "const": 1,
+          "type": "number",
+        },
+        "issues": {
+          "items": {
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "kind": {
+          "const": "invalid-manifest",
+          "type": "string",
+        },
+        "manifest": {
+          "type": "string",
+        },
+        "overall": {
+          "additionalProperties": false,
+          "properties": {
+            "label": {
+              "type": "string",
+            },
+            "outcome": {
+              "const": "could-not-verify",
+              "type": "string",
+            },
+          },
+          "required": [
+            "outcome",
+            "label",
+          ],
+          "type": "object",
+        },
+        "reason": {
+          "type": "string",
+        },
+        "text": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "formatVersion",
+        "kind",
+        "manifest",
+        "overall",
+        "exitCode",
+        "text",
+        "reason",
+        "issues",
+        "coverage",
+      ],
+      "type": "object",
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "exitCode": {
+          "const": 2,
+          "type": "number",
+        },
+        "formatVersion": {
+          "const": 1,
+          "type": "number",
+        },
+        "kind": {
+          "const": "refused",
+          "type": "string",
+        },
+        "manifest": {
+          "type": "string",
+        },
+        "reason": {
+          "type": "string",
+        },
+        "usage": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "formatVersion",
+        "kind",
+        "manifest",
+        "exitCode",
+        "reason",
+        "usage",
+      ],
+      "type": "object",
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "exitCode": {
+          "const": 2,
+          "type": "number",
+        },
+        "formatVersion": {
+          "const": 1,
+          "type": "number",
+        },
+        "kind": {
+          "const": "usage-error",
+          "type": "string",
+        },
+        "usage": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "formatVersion",
+        "kind",
+        "exitCode",
+        "usage",
+      ],
+      "type": "object",
+    },
+  ],
+}
+`;

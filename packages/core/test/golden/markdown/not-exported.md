@@ -1,0 +1,60 @@
+# <productName> check report
+
+Manifest: `not-exported.json` · Routes read: 1 · Network checked: eip155:84532
+
+Found from your route manifest, not from a live run.
+
+These routes could not be checked, because the configuration does not fix their payment terms:
+- `/api/item/[id]`: the payment address is worked out per request, so it is not known in advance
+- `/api/tiered`: the price is worked out per request, so it is not known in advance
+
+**Because of these routes, the overall result is could not verify.**
+
+| Outcome | Count |
+|---|---|
+| found a problem | 0 |
+| found no problem | 0 |
+| could not verify | 0 |
+| not applicable | 6 |
+
+## X402-03: A payment is tied to the route it was made for (version 4, experimental)
+
+### X402-03.dup-index: not applicable
+
+Two routes are given the same address index
+
+No route in this manifest uses an address index.
+
+### X402-03.index-range-overlap: not applicable
+
+Two ranges of address indexes overlap
+
+No route in your route manifest gives each item its own address, so there were no ranges to compare.
+
+### X402-03.cross-route: not applicable
+
+A payment made for one route is accepted by another
+
+Fewer than two of the routes checked share the same payment scheme, network, asset and price, so there was nothing to compare.
+
+### X402-03.dynamic-per-pattern: not applicable
+
+Every page of a dynamic route shares one payment address
+
+No route in your route manifest has a part that changes per request.
+
+### X402-03.tiers: not applicable
+
+Different price tiers share a payment address
+
+No route in your route manifest has tiers.
+
+### X402-03.stale-mapping: not applicable
+
+The route-to-address list is out of date with the routes
+
+No earlier manifest was given, so there was no history to compare with.
+
+---
+
+This report covers only the manifest given. Nothing was sent to any server, and routes or settings that the manifest does not hold were not looked at.

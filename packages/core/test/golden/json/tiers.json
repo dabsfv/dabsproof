@@ -1,0 +1,137 @@
+{
+  "formatVersion": 1,
+  "kind": "report",
+  "manifest": "tiers.json",
+  "routesRead": 3,
+  "networksChecked": [
+    "eip155:84532"
+  ],
+  "overall": {
+    "outcome": "found-a-problem",
+    "label": "found a problem"
+  },
+  "exitCode": 1,
+  "counts": {
+    "found-a-problem": 1,
+    "found-no-problem": 1,
+    "could-not-verify": 0,
+    "not-applicable": 4
+  },
+  "notes": [
+    "Found from your route manifest, not from a live run.",
+    "Tiers chosen by details of the request, such as a query string, were not tried; that is part of the live checks."
+  ],
+  "information": [],
+  "checks": [
+    {
+      "checkId": "X402-03",
+      "title": "A payment is tied to the route it was made for",
+      "version": 4,
+      "status": "experimental",
+      "results": [
+        {
+          "subCheckId": "X402-03.dup-index",
+          "title": "Two routes are given the same address index",
+          "outcome": "not-applicable",
+          "label": "not applicable",
+          "severity": null,
+          "text": "No route in this manifest uses an address index.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.index-range-overlap",
+          "title": "Two ranges of address indexes overlap",
+          "outcome": "not-applicable",
+          "label": "not applicable",
+          "severity": null,
+          "text": "No route in your route manifest gives each item its own address, so there were no ranges to compare.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.cross-route",
+          "title": "A payment made for one route is accepted by another",
+          "outcome": "found-a-problem",
+          "label": "found a problem",
+          "severity": "medium",
+          "text": "These routes share the same network, asset, price and payment address in your route manifest. On our test shop, that was enough for a payment made for one route to work on another. This report sent no payment, so it has not confirmed this for your service.",
+          "routesHeading": "These routes, as written in your manifest:",
+          "groups": [
+            {
+              "routes": [
+                {
+                  "route": "/api/alpha",
+                  "tier": null,
+                  "scheme": null,
+                  "payee": "0x0000…0010",
+                  "earlierRoute": null
+                },
+                {
+                  "route": "/api/tiered",
+                  "tier": "basic",
+                  "scheme": null,
+                  "payee": "0x0000…0010",
+                  "earlierRoute": null
+                }
+              ]
+            }
+          ],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.dynamic-per-pattern",
+          "title": "Every page of a dynamic route shares one payment address",
+          "outcome": "not-applicable",
+          "label": "not applicable",
+          "severity": null,
+          "text": "No route in your route manifest has a part that changes per request.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.tiers",
+          "title": "Different price tiers share a payment address",
+          "outcome": "found-no-problem",
+          "label": "found no problem",
+          "severity": null,
+          "text": "No two tiers of one route in your route manifest share the same payment scheme, network, asset, price and payment address. This covers only what this check tried.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.stale-mapping",
+          "title": "The route-to-address list is out of date with the routes",
+          "outcome": "not-applicable",
+          "label": "not applicable",
+          "severity": null,
+          "text": "No earlier manifest was given, so there was no history to compare with.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        }
+      ],
+      "fix": {
+        "whatSomeoneCouldDo": "Pay for one route and use that payment to get a different route with the same price, or use one payment across many routes.",
+        "escalation": [
+          "The severity could rise to high if routes with the same price give access to content of different value."
+        ],
+        "summary": "Make each payment usable only on the route it was made for.",
+        "steps": [
+          "Give each paid route its own payment address, so a payment's recipient shows which route it was for. It is not part of the x402 specification, and whether official guidance recommends it has not been checked.",
+          "Before sending content, check that the payment's recipient is the address of the route being requested.",
+          "Keep the route-to-address list in one place, and check it when your service starts."
+        ],
+        "guidance": "General guidance. It has not been tested on your service.",
+        "notAFix": [
+          "Different prices alone. Two routes with the same price still accept each other's payments."
+        ]
+      }
+    }
+  ],
+  "coverage": "This report covers only the manifest given. Nothing was sent to any server, and routes or settings that the manifest does not hold were not looked at."
+}

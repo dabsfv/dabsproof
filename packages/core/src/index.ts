@@ -30,7 +30,23 @@ export {
   type Scheme,
 } from './manifest/schema.js';
 export { serialiseManifest } from './manifest/serialise.js';
-export { type PreviousManifests, renderInvalidManifest, renderStaticReport, shortAddress } from './report/markdown.js';
+export {
+  type Block,
+  buildInvalidManifestDocument,
+  buildStaticReportDocument,
+  type InvalidManifestJson,
+  type Line,
+  type PreviousManifests,
+  plain,
+  REPORT_JSON_VERSION,
+  type ReportDocument,
+  type ReportJson,
+  type Segment,
+  shortAddress,
+} from './report/document.js';
+export { type ReportJsonOutput, ReportJsonSchema, refusedJson, renderJson, usageErrorJson } from './report/json.js';
+export { renderInvalidManifest, renderMarkdown, renderStaticReport } from './report/markdown.js';
+export { renderTerminal } from './report/terminal.js';
 export { REPORT_TEXT, reportSentences } from './report/text.js';
 export type { CheckResult, ResultGroup, RouteRef, StaticContext } from './results/types.js';
 export { type AnalyseOptions, analyse, exitCodeFor, type StaticReport, staticNetworkFilter } from './static/analyse.js';

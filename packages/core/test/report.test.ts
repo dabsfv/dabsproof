@@ -24,9 +24,6 @@ const liveSentence = x03?.status === 'experimental' ? x03.outcomes['found-a-prob
 
 describe('Markdown report', () => {
   for (const f of FIXTURES) {
-    it(`${f}: matches its snapshot (product name replaced, so the name stays only in brand)`, () => {
-      expect(report(f).split(brand.productName).join('<productName>')).toMatchSnapshot();
-    });
     it(`${f}: says it came from the manifest, states its coverage, and prints no full address`, () => {
       const t = report(f);
       expect(t).toContain(REPORT_TEXT.fromManifest);
@@ -147,15 +144,14 @@ describe('step 1.3 reports with an earlier manifest', () => {
       },
     );
   };
-  it('stale-reuse with stale-previous: matches its snapshot, and names the earlier route', () => {
+  // Full output is compared in golden.test.ts (the golden files replaced the snapshots in step 1.4).
+  it('stale-reuse with stale-previous: names the earlier route', () => {
     const t = withPrevious('stale-reuse', 'stale-previous');
-    expect(t.split(brand.productName).join('<productName>')).toMatchSnapshot();
     expect(t).toContain('- `/api/beta` (address index 0; earlier given to `/api/alpha`)');
     expect(t).toContain(REPORT_TEXT.movedHeading);
   });
-  it('hd-moved with hd: matches its snapshot, and lists the moved route', () => {
+  it('hd-moved with hd: lists the moved route', () => {
     const t = withPrevious('hd-moved', 'hd');
-    expect(t.split(brand.productName).join('<productName>')).toMatchSnapshot();
     expect(t).toContain('- `/api/alpha` (was address index 0, now address index 5)');
   });
   it('tiered routes get the line saying query-string variants were not tried', () => {

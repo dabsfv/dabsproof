@@ -2,6 +2,7 @@
 import { MANIFEST_TEXT } from '../manifest/messages.js';
 
 export const REPORT_TEXT = Object.freeze({
+  reportTitle: 'check report',
   fromManifest: 'Found from your route manifest, not from a live run.',
   nothingChecked: 'Nothing was checked: only Base Sepolia is checked.',
   skippedRoutes: 'These routes were not checked, because only Base Sepolia (eip155:84532) is checked:',
@@ -19,6 +20,7 @@ export const REPORT_TEXT = Object.freeze({
   networkLabel: 'Network checked:',
   networksLabel: 'Networks checked:',
   escalationLead: 'The severity could rise to',
+  escalationIf: 'if',
   severityLabel: 'severity:',
   versionLabel: 'version',
   schemesSeparate:

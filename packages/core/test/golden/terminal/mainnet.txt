@@ -1,0 +1,94 @@
+<productName> check report
+======================
+
+Manifest: mainnet.json · Routes read: 7 · Network checked: eip155:8453
+
+Found from your route manifest, not from a live run.
+
+These routes are on networks other than Base Sepolia. They were checked from your route manifest only; live checks run on Base Sepolia only:
+- /api/alpha (eip155:8453)
+- /api/beta (eip155:8453)
+- /api/gamma (eip155:8453)
+- /api/item/[id] (eip155:8453)
+- /api/tiered (eip155:8453)
+- /api/agg/seller1 (eip155:8453)
+- /api/agg/seller2 (eip155:8453)
+
+Outcome           Count
+found a problem   2
+found no problem  0
+could not verify  0
+not applicable    4
+
+X402-03: A payment is tied to the route it was made for (version 4, experimental)
+---------------------------------------------------------------------------------
+
+X402-03.dup-index: not applicable
+
+Two routes are given the same address index
+
+No route in this manifest uses an address index.
+
+X402-03.index-range-overlap: not applicable
+
+Two ranges of address indexes overlap
+
+No route in your route manifest gives each item its own address, so there were no ranges to compare.
+
+X402-03.cross-route: found a problem (severity: medium)
+
+A payment made for one route is accepted by another
+
+These routes share the same network, asset, price and payment address in your route manifest. On our test shop, that was enough for a payment made for one route to work on another. This report sent no payment, so it has not confirmed this for your service.
+
+These routes, as written in your manifest:
+- /api/agg/seller1 (0x0000…0010)
+- /api/agg/seller2 (0x0000…0010)
+- /api/alpha (0x0000…0010)
+- /api/beta (0x0000…0010)
+- /api/gamma (0x0000…0010)
+- /api/item/[id] (0x0000…0010)
+- /api/tiered (0x0000…0010)
+
+X402-03.dynamic-per-pattern: found a problem (severity: medium)
+
+Every page of a dynamic route shares one payment address
+
+These routes have a part that changes per request, such as [id], but one payment address and price for every value of it. A payment made for one value carries the same terms as a payment for any other value. This matters when the items behind those values are not worth the same. On our test shop, a payment made for one value was accepted for another. This report sent no payment, so it has not confirmed this for your service.
+
+These routes, as written in your manifest:
+- /api/item/[id] (0x0000…0010)
+
+X402-03.tiers: not applicable
+
+Different price tiers share a payment address
+
+No route in your route manifest has tiers.
+
+X402-03.stale-mapping: not applicable
+
+The route-to-address list is out of date with the routes
+
+No earlier manifest was given, so there was no history to compare with.
+
+What someone could do: Pay for one route and use that payment to get a different route with the same price, or use one payment across many routes.
+
+The severity could rise to high if routes with the same price give access to content of different value.
+
+Found from your route manifest, not from a live run.
+
+How to fix
+
+Make each payment usable only on the route it was made for.
+
+1. Give each paid route its own payment address, so a payment's recipient shows which route it was for. It is not part of the x402 specification, and whether official guidance recommends it has not been checked.
+2. Before sending content, check that the payment's recipient is the address of the route being requested.
+3. Keep the route-to-address list in one place, and check it when your service starts.
+
+General guidance. It has not been tested on your service.
+
+Not a fix: Different prices alone. Two routes with the same price still accept each other's payments.
+
+---
+
+This report covers only the manifest given. Nothing was sent to any server, and routes or settings that the manifest does not hold were not looked at.

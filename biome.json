@@ -1,6 +1,6 @@
 {
   "files": {
-    "includes": ["packages/**", "!**/dist", "!**/node_modules"]
+    "includes": ["packages/**", "!**/dist", "!**/node_modules", "!**/test/golden"]
   },
   "formatter": {
     "enabled": true,

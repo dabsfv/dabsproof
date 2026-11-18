@@ -1,0 +1,109 @@
+{
+  "formatVersion": 1,
+  "kind": "report",
+  "manifest": "dynamic-per-item.json",
+  "routesRead": 2,
+  "networksChecked": [
+    "eip155:84532"
+  ],
+  "overall": {
+    "outcome": "found-no-problem",
+    "label": "found no problem"
+  },
+  "exitCode": 0,
+  "counts": {
+    "found-a-problem": 0,
+    "found-no-problem": 3,
+    "could-not-verify": 0,
+    "not-applicable": 3
+  },
+  "notes": [
+    "Found from your route manifest, not from a live run."
+  ],
+  "information": [
+    {
+      "text": "These routes give each item its own address. X402-03.cross-route and X402-03.dup-index did not compare them with any other route; X402-03.index-range-overlap below says whether their address ranges could be compared:",
+      "items": [
+        "/api/item/[id] (address indexes 1001 to 10999)"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "checkId": "X402-03",
+      "title": "A payment is tied to the route it was made for",
+      "version": 4,
+      "status": "experimental",
+      "results": [
+        {
+          "subCheckId": "X402-03.dup-index",
+          "title": "Two routes are given the same address index",
+          "outcome": "found-no-problem",
+          "label": "found no problem",
+          "severity": null,
+          "text": "No two routes in your route manifest that use the same payment scheme are given the same address index. This covers only what this check tried.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.index-range-overlap",
+          "title": "Two ranges of address indexes overlap",
+          "outcome": "found-no-problem",
+          "label": "found no problem",
+          "severity": null,
+          "text": "No two address ranges in your route manifest that use the same payment scheme overlap, and no range includes an index given to another route that uses the same payment scheme. This covers only what this check tried.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.cross-route",
+          "title": "A payment made for one route is accepted by another",
+          "outcome": "not-applicable",
+          "label": "not applicable",
+          "severity": null,
+          "text": "Fewer than two of the routes checked share the same payment scheme, network, asset and price, so there was nothing to compare.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.dynamic-per-pattern",
+          "title": "Every page of a dynamic route shares one payment address",
+          "outcome": "found-no-problem",
+          "label": "found no problem",
+          "severity": null,
+          "text": "Every route in your route manifest with a part that changes per request gives each item its own address. This covers only what this check tried.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.tiers",
+          "title": "Different price tiers share a payment address",
+          "outcome": "not-applicable",
+          "label": "not applicable",
+          "severity": null,
+          "text": "No route in your route manifest has tiers.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        },
+        {
+          "subCheckId": "X402-03.stale-mapping",
+          "title": "The route-to-address list is out of date with the routes",
+          "outcome": "not-applicable",
+          "label": "not applicable",
+          "severity": null,
+          "text": "No earlier manifest was given, so there was no history to compare with.",
+          "routesHeading": null,
+          "groups": [],
+          "sameMistake": []
+        }
+      ],
+      "fix": null
+    }
+  ],
+  "coverage": "This report covers only the manifest given. Nothing was sent to any server, and routes or settings that the manifest does not hold were not looked at."
+}

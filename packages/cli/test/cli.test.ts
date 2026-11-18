@@ -8,7 +8,9 @@ import { run } from '../src/index.js';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const bin = fileURLToPath(new URL('../dist/bin.js', import.meta.url));
-const exec = (...args: string[]) => spawnSync(process.execPath, [bin, ...args], { cwd: root, encoding: 'utf8' });
+const spawn = (...args: string[]) => spawnSync(process.execPath, [bin, ...args], { cwd: root, encoding: 'utf8' });
+/** Markdown output unless a test names a format: the earlier tests check Markdown text. */
+const exec = (...args: string[]) => spawn(...args, ...(args.includes('--format') ? [] : ['--format', 'markdown']));
 
 describe('command name', () => {
   it('is cliName from brand.config.json (the second exception in CLAUDE.md)', () => {
@@ -80,7 +82,7 @@ describe('step 1.3: --previous', () => {
     );
     expect(r.status).toBe(1);
     expect(r.stdout).toContain('### X402-03.stale-mapping: found a problem');
-    expect(r.stdout).toContain('- `fixtures/manifests/stale-previous.json`');
+    expect(r.stdout).toContain('- `stale-previous.json`');
   });
   it('accepts --previous more than once', () => {
     const r = exec(
@@ -102,7 +104,7 @@ describe('step 1.3: --previous', () => {
     );
     expect(r.status).toBe(2);
     expect(r.stdout).toContain('These earlier manifests could not be read:');
-    expect(r.stdout).toContain('- `fixtures/manifests/no-such-file.json`: The manifest file could not be opened.');
+    expect(r.stdout).toContain('- `no-such-file.json`: The manifest file could not be opened.');
   });
   it('usage errors: --previous without a file, or an unknown option', () => {
     expect(run(['check', 'a.json', '--previous']).exitCode).toBe(2);
@@ -123,4 +125,76 @@ describe('step 1.3: one fixture per finding', () => {
       expect(exec('check', `fixtures/manifests/${f}.json`).status).toBe(code);
     });
   }
+});
+
+describe('step 1.4: --format', () => {
+  it('the default is terminal: plain text, no Markdown markers, same exit code', () => {
+    const r = spawn('check', 'fixtures/manifests/shared.json');
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain('X402-03.cross-route: found a problem (severity: medium)');
+    expect(r.stdout).not.toMatch(/`|\*\*|^#|^\|/m);
+    expect(r.stdout).toBe(spawn('check', 'fixtures/manifests/shared.json', '--format', 'terminal').stdout);
+  });
+  it('markdown and json give the same exit codes as terminal', () => {
+    for (const [f, code] of [
+      ['shared', 1],
+      ['hd-per-resource', 0],
+      ['not-exported', 2],
+    ] as const) {
+      for (const format of ['terminal', 'markdown', 'json']) {
+        expect(spawn('check', `fixtures/manifests/${f}.json`, '--format', format).status, `${f} ${format}`).toBe(code);
+      }
+    }
+  });
+  it('an unknown or repeated --format is a usage error', () => {
+    expect(run(['check', 'a.json', '--format', 'html']).exitCode).toBe(2);
+    expect(run(['check', 'a.json', '--format']).exitCode).toBe(2);
+    expect(run(['check', 'a.json', '--format', 'json', '--format', 'json']).exitCode).toBe(2);
+  });
+});
+
+describe('step 1.4: with --format json, standard output holds only the JSON document', () => {
+  const onlyJson = (args: string[], code: number, kind: string) => {
+    const r = spawn(...args, '--format', 'json');
+    expect(r.status).toBe(code);
+    expect(r.stderr).toBe('');
+    expect(r.stdout.endsWith('}\n')).toBe(true);
+    const doc = JSON.parse(r.stdout);
+    expect(doc.formatVersion).toBe(1);
+    expect(doc.kind).toBe(kind);
+    expect(doc.exitCode).toBe(code);
+  };
+  it('a report', () => onlyJson(['check', 'fixtures/manifests/shared.json'], 1, 'report'));
+  it('a report that found no problem', () =>
+    onlyJson(['check', 'fixtures/manifests/hd-per-resource.json'], 0, 'report'));
+  it('a usage error', () => onlyJson(['check'], 2, 'usage-error'));
+  it('a usage error with --format json first', () => {
+    const r = spawn('--format', 'json', 'scan');
+    expect(r.status).toBe(2);
+    expect(JSON.parse(r.stdout).kind).toBe('usage-error');
+    expect(r.stderr).toBe('');
+  });
+  it('a manifest that does not exist', () => onlyJson(['check', 'fixtures/manifests/no-such-file.json'], 2, 'refused'));
+  it('an environment file', () => onlyJson(['check', '.env'], 2, 'refused'));
+  it('an invalid manifest', () => onlyJson(['check', 'package.json'], 2, 'invalid-manifest'));
+});
+
+describe('step 1.4: the CLI names manifests by file name only', () => {
+  it('the main manifest, an earlier one and a refused one, in every format', () => {
+    for (const format of ['terminal', 'markdown', 'json']) {
+      const r = spawn(
+        'check',
+        './fixtures/manifests/stale-reuse.json',
+        '--previous',
+        'fixtures/manifests/stale-previous.json',
+        '--format',
+        format,
+      );
+      expect(r.stdout).toContain('stale-reuse.json');
+      expect(r.stdout).toContain('stale-previous.json');
+      expect(r.stdout).not.toContain('fixtures/');
+    }
+    const refused = JSON.parse(spawn('check', 'fixtures/manifests/no-such-file.json', '--format', 'json').stdout);
+    expect(refused.manifest).toBe('no-such-file.json');
+  });
 });
