@@ -1,0 +1,624 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`evidence schemas > JSON Schema 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "length": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "sha256",
+                "length",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "dropped": {
+          "maximum": 9007199254740991,
+          "minimum": -9007199254740991,
+          "type": "integer",
+        },
+        "kind": {
+          "const": "request-record",
+          "type": "string",
+        },
+        "method": {
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "payment": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "decoded": {
+                  "type": "boolean",
+                },
+                "dropped": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "fingerprint": {
+                  "anyOf": [
+                    {
+                      "pattern": "^fp1:[A-Za-z0-9_-]{43}$",
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "headerName": {
+                  "type": "string",
+                },
+                "length": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "noFingerprintReason": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "undecodable",
+                        "unsupported-version",
+                        "unsupported-payload",
+                        "unsupported-scheme",
+                        "missing-fields",
+                        "not-a-payment-header",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "terms": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "amount": {
+                          "type": "string",
+                        },
+                        "asset": {
+                          "type": "string",
+                        },
+                        "network": {
+                          "type": "string",
+                        },
+                        "payTo": {
+                          "type": "string",
+                        },
+                        "resource": {
+                          "additionalProperties": false,
+                          "properties": {
+                            "dropped": {
+                              "maximum": 9007199254740991,
+                              "minimum": -9007199254740991,
+                              "type": "integer",
+                            },
+                            "origin": {
+                              "type": "string",
+                            },
+                            "path": {
+                              "type": "string",
+                            },
+                            "queryNames": {
+                              "items": {
+                                "type": "string",
+                              },
+                              "type": "array",
+                            },
+                          },
+                          "required": [
+                            "origin",
+                            "path",
+                            "queryNames",
+                            "dropped",
+                          ],
+                          "type": "object",
+                        },
+                        "scheme": {
+                          "type": "string",
+                        },
+                        "validAfter": {
+                          "type": "string",
+                        },
+                        "validBefore": {
+                          "type": "string",
+                        },
+                      },
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "headerName",
+                "length",
+                "decoded",
+                "terms",
+                "fingerprint",
+                "noFingerprintReason",
+                "dropped",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "paymentRequired": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "accepts": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "amount": {
+                        "type": "string",
+                      },
+                      "asset": {
+                        "type": "string",
+                      },
+                      "maxTimeoutSeconds": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer",
+                      },
+                      "network": {
+                        "type": "string",
+                      },
+                      "payTo": {
+                        "type": "string",
+                      },
+                      "scheme": {
+                        "type": "string",
+                      },
+                    },
+                    "type": "object",
+                  },
+                  "maxItems": 20,
+                  "type": "array",
+                },
+                "acceptsOverCap": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "decoded": {
+                  "type": "boolean",
+                },
+                "dropped": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "errorLength": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "headerName": {
+                  "type": "string",
+                },
+                "length": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "resource": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "dropped": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                        "origin": {
+                          "type": "string",
+                        },
+                        "path": {
+                          "type": "string",
+                        },
+                        "queryNames": {
+                          "items": {
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                      },
+                      "required": [
+                        "origin",
+                        "path",
+                        "queryNames",
+                        "dropped",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "headerName",
+                "length",
+                "decoded",
+                "resource",
+                "accepts",
+                "acceptsOverCap",
+                "errorLength",
+                "dropped",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "requestHeaders": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "length": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "name": {
+                "type": "string",
+              },
+              "note": {
+                "const": "not-text",
+                "type": "string",
+              },
+              "value": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "length",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "responseHeaders": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "length": {
+                "anyOf": [
+                  {
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
+              },
+              "name": {
+                "type": "string",
+              },
+              "note": {
+                "const": "not-text",
+                "type": "string",
+              },
+              "value": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "length",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "runId": {
+          "type": "string",
+        },
+        "settlement": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "amount": {
+                  "type": "string",
+                },
+                "decoded": {
+                  "type": "boolean",
+                },
+                "dropped": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "errorMessageLength": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "errorReason": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "code",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "codeLength": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                      },
+                      "required": [
+                        "codeLength",
+                      ],
+                      "type": "object",
+                    },
+                  ],
+                },
+                "headerName": {
+                  "type": "string",
+                },
+                "length": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "network": {
+                  "type": "string",
+                },
+                "success": {
+                  "type": [
+                    "boolean",
+                    "null",
+                  ],
+                },
+                "transactionHash": {
+                  "type": "string",
+                },
+                "transactionLength": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+              },
+              "required": [
+                "headerName",
+                "length",
+                "decoded",
+                "success",
+                "dropped",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "status": {
+          "anyOf": [
+            {
+              "maximum": 9007199254740991,
+              "minimum": -9007199254740991,
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+        "url": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "dropped": {
+                  "maximum": 9007199254740991,
+                  "minimum": -9007199254740991,
+                  "type": "integer",
+                },
+                "origin": {
+                  "type": "string",
+                },
+                "path": {
+                  "type": "string",
+                },
+                "queryNames": {
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "origin",
+                "path",
+                "queryNames",
+                "dropped",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
+      },
+      "required": [
+        "kind",
+        "runId",
+        "method",
+        "url",
+        "status",
+        "requestHeaders",
+        "responseHeaders",
+        "payment",
+        "paymentRequired",
+        "settlement",
+        "body",
+        "dropped",
+      ],
+      "type": "object",
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "pattern": "^\\d+$",
+          "type": "string",
+        },
+        "asset": {
+          "type": "string",
+        },
+        "before": {
+          "pattern": "^\\d+$",
+          "type": "string",
+        },
+        "kind": {
+          "const": "balance-delta",
+          "type": "string",
+        },
+        "network": {
+          "type": "string",
+        },
+        "payTo": {
+          "type": "string",
+        },
+        "runId": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "kind",
+        "runId",
+        "network",
+        "asset",
+        "payTo",
+        "before",
+        "after",
+      ],
+      "type": "object",
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+        },
+        "kind": {
+          "const": "code-citation",
+          "type": "string",
+        },
+        "line": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "kind",
+        "file",
+        "line",
+      ],
+      "type": "object",
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "checkId": {
+          "type": "string",
+        },
+        "kind": {
+          "const": "config-finding",
+          "type": "string",
+        },
+        "subCheckId": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "kind",
+        "checkId",
+        "subCheckId",
+      ],
+      "type": "object",
+    },
+  ],
+}
+`;

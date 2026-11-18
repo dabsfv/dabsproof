@@ -56,3 +56,6 @@ export { STATIC_IMPLEMENTATIONS } from './static/implementations.js';
 export function summary(): string {
   return `${brand.productName}: ${checks.length} checks loaded`;
 }
+
+// Evidence (step 1.5).
+export * from './evidence/index.js';
