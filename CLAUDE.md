@@ -1,6 +1,7 @@
 # DabsProof: rules for Claude Code
 
 The product name and slugs live in brand.config.json and packages/brand only. Do not hard-code them elsewhere.
+The only exception is the npm scope @dabsproof/ in package names and in imports between packages.
 
 ## Never
 - Never use mainnet or real money. Base Sepolia (eip155:84532) or a local fork only. If a task seems to need mainnet, stop and say so.

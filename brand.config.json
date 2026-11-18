@@ -1,0 +1,10 @@
+{
+  "productName": "DabsProof",
+  "slug": "dabsproof",
+  "cliName": "dabsproof",
+  "npmScope": "@dabsproof",
+  "domain": null,
+  "dnsLabel": "_dabsproof",
+  "wellKnownFile": "dabsproof.txt",
+  "configDir": "~/.config/dabsproof"
+}

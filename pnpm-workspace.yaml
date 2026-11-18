@@ -1,0 +1,9 @@
+packages:
+  - packages/*
+
+# Do not install any package version published less than 7 days ago (in minutes).
+minimumReleaseAge: 10080
+
+# esbuild's install script stays blocked; it works through its platform package.
+ignoredBuiltDependencies:
+  - esbuild
