@@ -4,9 +4,30 @@ import { checks } from '@dabsproof/registry';
 
 export { registryText, type TextPart } from './lint/registry-text.js';
 export { FORBIDDEN_WORDS, lintWording, US_SPELLINGS, type WordingProblem, withoutCode } from './lint/wording.js';
+export {
+  type ExportOptions,
+  exportManifest,
+  type PaymentOptionLike,
+  type RouteConfigLike,
+  type RoutesConfigLike,
+} from './manifest/export.js';
+export { type ImportResult, importDemoConfig } from './manifest/import-demo.js';
 export { type LoadResult, loadManifest, MAX_MANIFEST_BYTES } from './manifest/load.js';
 export { MANIFEST_TEXT } from './manifest/messages.js';
-export { type Manifest, type ManifestRoute, ManifestSchema } from './manifest/schema.js';
+export { dollarsToUnits, type PriceResult } from './manifest/price.js';
+export {
+  describeIssues,
+  type Manifest,
+  type ManifestRoute,
+  ManifestSchema,
+  NOT_EXPORTED_REASONS,
+  NOT_EXPORTED_TEXT,
+  type NotExported,
+  type NotExportedReason,
+  SCHEMES,
+  type Scheme,
+} from './manifest/schema.js';
+export { serialiseManifest } from './manifest/serialise.js';
 export { renderInvalidManifest, renderStaticReport, shortAddress } from './report/markdown.js';
 export { REPORT_TEXT, reportSentences } from './report/text.js';
 export type { CheckResult, ResultGroup, RouteRef } from './results/types.js';

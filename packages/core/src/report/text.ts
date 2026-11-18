@@ -20,6 +20,17 @@ export const REPORT_TEXT = Object.freeze({
   escalationLead: 'The severity could rise to',
   severityLabel: 'severity:',
   versionLabel: 'version',
+  schemesSeparate:
+    'Routes with different payment schemes were compared separately. This report says nothing about whether a payment made under one scheme works on a route that uses another.',
+  nothingFixed: 'Nothing was checked: no route had fixed payment terms in the configuration.',
+  notExportedHeading: 'These routes could not be checked, because the configuration does not fix their payment terms:',
+  notExportedOverall: 'Because of these routes, the overall result is could not verify.',
+  perResourceLeftOut:
+    'These routes give each item its own address. This check did not compare them with any other route, and did not check whether their address ranges overlap:',
+  tierLabel: 'tier',
+  schemeLabel: 'scheme',
+  addressIndexLabel: 'address index',
+  baseIndexLabel: 'base address index',
   outcomeCount: 'Outcome',
   count: 'Count',
 });

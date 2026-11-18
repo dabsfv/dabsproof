@@ -1,6 +1,7 @@
 // One renderer for the report (Markdown here; HTML later). All wording comes from the registry
 // or from REPORT_TEXT, so pnpm lint:wording covers every sentence a seller reads.
 import { BASE_SEPOLIA, type CheckEntry, getCheck, OUTCOME_LABEL, OUTCOMES } from '@dabsproof/registry';
+import { NOT_EXPORTED_TEXT } from '../manifest/schema.js';
 import type { CheckResult, ResultGroup, RouteRef } from '../results/types.js';
 import type { StaticReport } from '../static/analyse.js';
 import { REPORT_TEXT as T } from './text.js';
@@ -8,10 +9,16 @@ import { REPORT_TEXT as T } from './text.js';
 /** First 6 and last 4 characters, for example 0x0000…0010. */
 export const shortAddress = (a: string): string => `${a.slice(0, 6)}…${a.slice(-4)}`;
 
-const routeLine = (r: RouteRef): string =>
-  r.address !== undefined
-    ? `- \`${r.route}\` (\`${shortAddress(r.address)}\`)`
-    : `- \`${r.route}\` (address index ${r.index})`;
+/** One route per line: tier and scheme only when they matter, then who gets paid. */
+const routeLine =
+  (showScheme: boolean) =>
+  (r: RouteRef): string => {
+    const parts: string[] = [];
+    if (r.tier !== undefined) parts.push(`${T.tierLabel} ${r.tier}`);
+    if (showScheme) parts.push(`${T.schemeLabel} ${r.scheme}`);
+    parts.push(r.address !== undefined ? `\`${shortAddress(r.address)}\`` : `${T.addressIndexLabel} ${r.index}`);
+    return `- \`${r.route}\` (${parts.join(', ')})`;
+  };
 
 function entryFor(checkId: string): CheckEntry {
   const e = getCheck(checkId);
@@ -25,7 +32,8 @@ function subFor(entry: CheckEntry, subCheckId: string) {
   return { ...sub, static: sub.static };
 }
 
-function resultLines(entry: CheckEntry, r: CheckResult, all: CheckResult[]): string[] {
+function resultLines(entry: CheckEntry, r: CheckResult, all: CheckResult[], showScheme: boolean): string[] {
+  const line = routeLine(showScheme);
   const sub = subFor(entry, r.subCheckId);
   const heading = `### ${r.subCheckId}: ${OUTCOME_LABEL[r.outcome]}${r.severity ? ` (${T.severityLabel} ${r.severity})` : ''}`;
   const out = [heading, '', sub.title, ''];
@@ -37,15 +45,20 @@ function resultLines(entry: CheckEntry, r: CheckResult, all: CheckResult[]): str
     const repeats = r.groups.filter(causeFound);
     if (own.length) {
       out.push(sub.static['found-a-problem'], '', T.sharedHeading);
-      for (const g of own) out.push(...g.routes.map(routeLine), '');
+      for (const g of own) out.push(...g.routes.map(line), '');
     }
-    for (const g of repeats) out.push(T.sameMistake, ...g.routes.map(routeLine), '');
+    for (const g of repeats) out.push(T.sameMistake, ...g.routes.map(line), '');
   } else if (r.outcome === 'found-no-problem') {
-    out.push(sub.static['found-no-problem'], '');
+    // Static results compare routes within one payment scheme (X402-03 version 3 texts).
+    out.push(sub.static['found-no-problem-within-scheme'] ?? sub.static['found-no-problem'], '');
   } else if (r.outcome === 'not-applicable') {
-    out.push(r.note === 'no-index' ? T.noIndex : entry.outcomes['not-applicable'], '');
+    out.push(
+      r.note === 'no-index' ? T.noIndex : (sub.static['not-applicable'] ?? entry.outcomes['not-applicable']),
+      '',
+    );
   } else {
-    out.push(r.note === 'nothing-checked' ? T.nothingChecked : entry.outcomes['could-not-verify'], '');
+    const text = r.note === 'nothing-checked' ? T.nothingChecked : r.note === 'nothing-fixed' ? T.nothingFixed : null;
+    out.push(text ?? entry.outcomes['could-not-verify'], '');
   }
   return out;
 }
@@ -72,9 +85,24 @@ export function renderStaticReport(productName: string, manifestPath: string, re
     T.fromManifest,
     '',
   ];
-  if (!report.checkedRoutes.length) out.push(`**${T.nothingChecked}**`, '');
+  if (report.mixedSchemes) out.push(T.schemesSeparate, '');
+  if (!report.checkedRoutes.length) out.push(`**${report.routesRead ? T.nothingChecked : T.nothingFixed}**`, '');
   if (report.skippedRoutes.length) {
     out.push(T.skippedRoutes, ...report.skippedRoutes.map((r) => `- \`${r.route}\` (${r.network})`), '');
+  }
+  if (report.notExported.length) {
+    out.push(
+      T.notExportedHeading,
+      ...report.notExported.map((n) => `- \`${n.route}\`: ${NOT_EXPORTED_TEXT[n.reason]}`),
+      '',
+    );
+    out.push(`**${T.notExportedOverall}**`, '');
+  }
+  if (report.perResourceRoutes.length) {
+    const pr = report.perResourceRoutes.map(
+      (r) => `- \`${r.route}\` (${T.baseIndexLabel} ${r.perResource?.baseIndex})`,
+    );
+    out.push(T.perResourceLeftOut, ...pr, '');
   }
   out.push(`| ${T.outcomeCount} | ${T.count} |`, '|---|---|');
   for (const o of OUTCOMES)
@@ -85,7 +113,7 @@ export function renderStaticReport(productName: string, manifestPath: string, re
     const entry = entryFor(id);
     const results = report.results.filter((r) => r.checkId === id);
     out.push(`## ${entry.id}: ${entry.title} (${T.versionLabel} ${entry.version}, ${entry.status})`, '');
-    for (const r of results) out.push(...resultLines(entry, r, results));
+    for (const r of results) out.push(...resultLines(entry, r, results, report.mixedSchemes));
     if (results.some((r) => r.outcome === 'found-a-problem')) out.push(...fixLines(entry));
   }
   out.push('---', '', T.coverage, '');

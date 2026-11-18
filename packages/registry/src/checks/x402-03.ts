@@ -3,7 +3,7 @@ import { BASE_SEPOLIA, COULD_NOT_VERIFY, COVERS_ONLY, FIRST_DATE, FIRST_VERSION,
 
 export const x402_03 = {
   id: 'X402-03',
-  version: 2,
+  version: 3,
   status: 'experimental',
   title: 'A payment is tied to the route it was made for',
   severity: 'medium',
@@ -44,6 +44,9 @@ export const x402_03 = {
         'found-a-problem':
           'These routes share the same network, asset, price and payment address in your route manifest. On our test shop, that was enough for a payment made for one route to work on another. This report sent no payment, so it has not confirmed this for your service.',
         'found-no-problem': `No two routes in your route manifest share the same network, asset, price and payment address. ${COVERS_ONLY}`,
+        'found-no-problem-within-scheme': `No two routes in your route manifest that use the same payment scheme share the same network, asset, price and payment address. ${COVERS_ONLY}`,
+        'not-applicable':
+          'Fewer than two of the routes checked share the same payment scheme, network, asset and price, so there was nothing to compare.',
       },
     },
     {
@@ -54,6 +57,7 @@ export const x402_03 = {
         'found-a-problem':
           "These routes are given the same address index in your route manifest, so they would be paid to the same address. On our test shop, routes that shared a network, asset, price and payment address accepted each other's payments. This report sent no payment, so it has not confirmed this for your service.",
         'found-no-problem': `No two routes in your route manifest are given the same address index. ${COVERS_ONLY}`,
+        'found-no-problem-within-scheme': `No two routes in your route manifest that use the same payment scheme are given the same address index. ${COVERS_ONLY}`,
       },
     },
     {
@@ -76,6 +80,12 @@ export const x402_03 = {
       date: FIRST_DATE,
       change:
         'Added the text shown for .cross-route and .dup-index when a result comes from a route manifest rather than a live run.',
+    },
+    {
+      version: 3,
+      date: FIRST_DATE,
+      change:
+        'Static texts now say that routes are compared within one payment scheme, and the static not-applicable text no longer claims a payment cannot be moved.',
     },
   ],
 } satisfies CheckInput;

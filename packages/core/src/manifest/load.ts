@@ -3,7 +3,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { basename } from 'node:path';
 import { MANIFEST_TEXT as M } from './messages.js';
-import { type Manifest, ManifestSchema } from './schema.js';
+import { describeIssues, type Manifest, ManifestSchema } from './schema.js';
 
 export const MAX_MANIFEST_BYTES = 1024 * 1024;
 
@@ -31,7 +31,7 @@ export function loadManifest(path: string): LoadResult {
   }
   const parsed = ManifestSchema.safeParse(data);
   if (!parsed.success) {
-    const issues = parsed.error.issues.map((i) => `${i.path.join('.') || M.topLevel}: ${i.message}`);
+    const issues = describeIssues(parsed.error.issues);
     return { ok: false, kind: 'invalid', reason: M.wrongFormat, issues };
   }
   return { ok: true, manifest: parsed.data };

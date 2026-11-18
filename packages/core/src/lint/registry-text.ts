@@ -25,7 +25,8 @@ export function registryText(entry: RegistryEntry): TextPart[] {
   for (const s of entry.subChecks) add(`${s.id} title`, s.title);
   for (const s of entry.subChecks) {
     if (!s.static) continue;
-    for (const [outcome, text] of Object.entries(s.static)) add(`${s.id} static.${outcome}`, text);
+    for (const [outcome, text] of Object.entries(s.static))
+      if (text !== undefined) add(`${s.id} static.${outcome}`, text);
   }
   for (const [outcome, text] of Object.entries(entry.outcomes)) add(`outcomes.${outcome}`, text);
   add('remediation.summary', entry.remediation.summary);

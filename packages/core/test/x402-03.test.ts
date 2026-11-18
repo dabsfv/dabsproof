@@ -107,3 +107,69 @@ describe('exit codes', () => {
     expect(analyse(load('hd-dup-index')).exitCode).toBe(1);
   });
 });
+
+describe('step 1.1: schemes, tiers and per-item routes', () => {
+  it('compares schemes separately: an exact and an upto route on one address and price are not a clash', () => {
+    const x = result(load('schemes'), 'cross-route');
+    expect(x.outcome).toBe('found-no-problem');
+    expect(analyse(load('schemes')).mixedSchemes).toBe(true);
+  });
+  it('still finds a clash inside one scheme', () => {
+    const x = result(
+      m(r('/a', { scheme: 'upto', address: fake(10) }), r('/b', { scheme: 'upto', address: fake(10) })),
+      'cross-route',
+    );
+    expect(x.outcome).toBe('found-a-problem');
+    expect(x.groups[0]?.scheme).toBe('upto');
+  });
+  it('groups repeated indexes by scheme', () => {
+    const x = m(r('/a', { index: 7 }), r('/b', { index: 7, scheme: 'upto' }));
+    expect(result(x, 'dup-index').outcome).toBe('found-no-problem');
+  });
+  it('finds a tier that shares price and address with another route, and labels the tier', () => {
+    const x = result(load('tiers'), 'cross-route');
+    expect(x.outcome).toBe('found-a-problem');
+    expect(x.groups[0]?.routes.map((g) => [g.route, g.tier])).toEqual([
+      ['/api/alpha', undefined],
+      ['/api/tiered', 'basic'],
+    ]);
+  });
+  it('never reports two tiers of one route against each other', () => {
+    const x = m(r('/t', { tier: 'a', index: 4 }), r('/t', { tier: 'b', index: 4 }));
+    expect(result(x, 'cross-route').outcome).toBe('not-applicable');
+    expect(result(x, 'dup-index').outcome).toBe('found-no-problem');
+  });
+  it('leaves per-item routes out of both sub-checks, and lists them', () => {
+    const a = analyse(load('hd-per-resource'));
+    expect(a.perResourceRoutes.map((x) => x.route)).toEqual(['/api/item/[id]']);
+    for (const res of a.results) {
+      expect(res.groups.flatMap((g) => g.routes.map((x) => x.route))).not.toContain('/api/item/[id]');
+    }
+    expect(a.exitCode).toBe(0);
+  });
+});
+
+describe('step 1.1: notExported', () => {
+  it('makes the overall result could not verify, with exit 2', () => {
+    const a = analyse(load('not-exported'));
+    expect(a.notExported).toHaveLength(2);
+    expect(a.overall).toBe('could-not-verify');
+    expect(a.exitCode).toBe(2);
+  });
+  it('still exits 1 when a problem was found as well', () => {
+    const x = {
+      ...m(r('/a', { address: fake(10) }), r('/b', { address: fake(10) })),
+      notExported: [{ route: '/c', reason: 'price-function' as const }],
+    };
+    expect(analyse(x).exitCode).toBe(1);
+  });
+  it('when no route had fixed terms, nothing was checked: could not verify, exit 2', () => {
+    const a = analyse({ manifestVersion: 1, routes: [], notExported: [{ route: '/c', reason: 'payto-function' }] });
+    expect(a.results.every((x) => x.outcome === 'could-not-verify' && x.note === 'nothing-fixed')).toBe(true);
+    expect(a.exitCode).toBe(2);
+  });
+  it('exitCodeFor counts unverified routes', () => {
+    expect(exitCodeFor([{ outcome: 'found-no-problem' }], 1)).toBe(2);
+    expect(exitCodeFor([{ outcome: 'found-no-problem' }], 0)).toBe(0);
+  });
+});

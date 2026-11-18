@@ -1,0 +1,23 @@
+{
+  "$comment": "Test fixture. Every address in this file is fake (0x, zeros and a counter). None is a real address. Two routes had payment terms worked out per request, so exportManifest() could not fix them.",
+  "manifestVersion": 1,
+  "routes": [
+    {
+      "route": "/api/alpha",
+      "price": "1000",
+      "asset": "0x0000000000000000000000000000000000000001",
+      "network": "eip155:84532",
+      "address": "0x0000000000000000000000000000000000000010"
+    }
+  ],
+  "notExported": [
+    {
+      "route": "/api/item/[id]",
+      "reason": "payto-function"
+    },
+    {
+      "route": "/api/tiered",
+      "reason": "price-function"
+    }
+  ]
+}

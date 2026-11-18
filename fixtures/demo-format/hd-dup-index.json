@@ -1,0 +1,38 @@
+{
+  "_note": "Test fixture. Every address in this file is fake (0x, zeros and a counter). None is a real address. Demo format: the second route repeats the first route's index on purpose.",
+  "network": "eip155:84532",
+  "asset": "0x0000000000000000000000000000000000000001",
+  "routes": {
+    "/api/alpha": {
+      "price": "$0.001",
+      "index": 0
+    },
+    "/api/beta": {
+      "price": "$0.001",
+      "index": 0
+    },
+    "/api/gamma": {
+      "price": "$0.001",
+      "index": 2
+    },
+    "/api/item/[id]": {
+      "price": "$0.001",
+      "index": 3
+    },
+    "/api/tiered": {
+      "price": {
+        "basic": "$0.001",
+        "pro": "$0.002"
+      },
+      "index": 4
+    },
+    "/api/agg/seller1": {
+      "price": "$0.001",
+      "index": 10
+    },
+    "/api/agg/seller2": {
+      "price": "$0.001",
+      "index": 11
+    }
+  }
+}

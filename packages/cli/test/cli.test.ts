@@ -48,3 +48,20 @@ describe('built command, run as a seller would (step 0.7 exit test)', () => {
     expect(r.stdout).toContain('Nothing was checked: only Base Sepolia is checked.');
   });
 });
+
+describe('step 1.1 fixtures through the built command', () => {
+  it('schemes.json exits 0 and says schemes were compared separately', () => {
+    const r = exec('check', 'fixtures/manifests/schemes.json');
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('Routes with different payment schemes were compared separately.');
+  });
+  it('tiers.json exits 1', () => {
+    expect(exec('check', 'fixtures/manifests/tiers.json').status).toBe(1);
+  });
+  it('not-exported.json exits 2', () => {
+    expect(exec('check', 'fixtures/manifests/not-exported.json').status).toBe(2);
+  });
+  it('hd-per-resource.json exits 0', () => {
+    expect(exec('check', 'fixtures/manifests/hd-per-resource.json').status).toBe(0);
+  });
+});

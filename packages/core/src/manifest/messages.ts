@@ -1,4 +1,5 @@
-// Every message the manifest loader and schema can show a seller. pnpm lint:wording checks them.
+// Every message the manifest code can show a seller. pnpm lint:wording checks them all.
+// Messages name a field by its path only: never a value, and never the name of an unknown field.
 export const MANIFEST_TEXT = Object.freeze({
   envRefused: 'Environment files are never read.',
   cannotOpen: 'The manifest file could not be opened.',
@@ -9,7 +10,29 @@ export const MANIFEST_TEXT = Object.freeze({
   route: 'a route is a path starting with /, with no spaces or backticks',
   price: "a price is a whole number of the asset's smallest units",
   network: 'a network looks like eip155:84532',
-  addressOrIndex: 'give exactly one of address or index',
-  routeTwice: 'this route is listed twice',
+  scheme: 'a scheme is exact or upto',
+  tier: 'a tier is a label of letters, numbers and hyphens',
+  payee: 'give exactly one of address, index or perResource',
+  perResourceDynamic: 'perResource is allowed only on a route with a [param] part',
+  routeTwice: 'this route is listed twice with the same tier, scheme, network and asset',
+  unknownField: 'this object has a field that is not part of the format',
+  fieldInvalid: 'this field is missing or has the wrong type',
+  emptyManifest: 'the manifest lists no routes',
   topLevel: '(top level)',
+  // Demo-format importer and exportManifest()
+  dollarPrice: 'a price is written like "$0.001"',
+  tooPrecise: 'this price has more decimal places than the asset allows',
+  decimals: 'decimals must be a whole number from 0 to 36',
+  needsPath: 'a single route configuration needs the path option',
+  // Why exportManifest() could not read a route's payment terms. Never a value.
+  reasonPayToFunction: 'the payment address is worked out per request, so it is not known in advance',
+  reasonPriceFunction: 'the price is worked out per request, so it is not known in advance',
+  reasonPriceNumber: 'the price is written as a number; only text prices such as "$0.001" are read',
+  reasonPriceAssetAmount: 'the price names an asset and an amount, and the units of that amount have not been checked',
+  reasonPriceFormat: 'the price is not written like "$0.001"',
+  reasonPriceTooPrecise: 'the price has more decimal places than the asset allows',
+  reasonPayToNotAddress: 'the payment address is not written as 0x followed by 40 hex characters',
+  reasonNetworkNotEvm: 'the network is not an EVM network, so it is not read here',
+  reasonSchemeUnknown: 'the payment scheme is not exact or upto',
+  reasonDuplicateOption: 'the route offers two payment options with the same scheme, network and asset',
 });

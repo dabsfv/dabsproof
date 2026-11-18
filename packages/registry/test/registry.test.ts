@@ -149,3 +149,30 @@ describe('the schema refuses', () => {
     expect(refuses((e) => Object.assign(e, { version: 2 }))).toBe(true);
   });
 });
+
+describe('X402-03 version 3 is append-only', () => {
+  const c = getCheck('X402-03');
+  const subs = c?.status === 'experimental' ? c.subChecks : [];
+  const text = (id: string) => subs.find((s) => s.id === id)?.static;
+  it('keeps the version 2 static texts word for word', () => {
+    expect(text('X402-03.cross-route')?.['found-no-problem']).toBe(
+      `No two routes in your route manifest share the same network, asset, price and payment address. ${COVERS_ONLY}`,
+    );
+    expect(text('X402-03.dup-index')?.['found-no-problem']).toBe(
+      `No two routes in your route manifest are given the same address index. ${COVERS_ONLY}`,
+    );
+  });
+  it('adds the within-scheme texts and the static not-applicable text', () => {
+    expect(text('X402-03.cross-route')?.['found-no-problem-within-scheme']).toContain(
+      'that use the same payment scheme',
+    );
+    expect(text('X402-03.dup-index')?.['found-no-problem-within-scheme']).toContain('that use the same payment scheme');
+    expect(text('X402-03.cross-route')?.['not-applicable']).toBe(
+      'Fewer than two of the routes checked share the same payment scheme, network, asset and price, so there was nothing to compare.',
+    );
+  });
+  it('is version 3 with a changelog line for it', () => {
+    expect(c?.version).toBe(3);
+    expect(c?.changelog.at(-1)?.version).toBe(3);
+  });
+});

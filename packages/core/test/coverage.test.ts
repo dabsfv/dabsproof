@@ -17,6 +17,7 @@ describe('coverage', () => {
       expect(sub, `${id} is not in the registry`).toBeDefined();
       expect(sub?.static, `${id} has no static text`).toBeDefined();
       expect(['static', 'both']).toContain(sub?.kind);
+      expect(sub?.static?.['found-no-problem-within-scheme'], `${id} has no within-scheme text`).toBeDefined();
     }
   });
 

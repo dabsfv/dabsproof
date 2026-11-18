@@ -90,10 +90,16 @@ export const RemediationSchema = z
 
 // Text for a result read from configuration (a route manifest) rather than a live run. A live
 // outcome sentence must never be shown for a result that no payment confirmed.
+const EndsWithCoverage = Text.refine((s) => s.endsWith(` ${COVERS_ONLY}`), `must end with "${COVERS_ONLY}"`);
+
 export const StaticTextSchema = z
   .object({
     'found-a-problem': Text,
-    'found-no-problem': Text.refine((s) => s.endsWith(` ${COVERS_ONLY}`), `must end with "${COVERS_ONLY}"`),
+    'found-no-problem': EndsWithCoverage,
+    // Added in X402-03 version 3: static results compare routes within one payment scheme.
+    // Existing texts are never edited; reports use these when present.
+    'found-no-problem-within-scheme': EndsWithCoverage.optional(),
+    'not-applicable': Text.optional(),
   })
   .strict();
 

@@ -3,6 +3,8 @@ import type { Outcome, Severity } from '@dabsproof/registry';
 
 export interface RouteRef {
   route: string;
+  tier?: string;
+  scheme: string;
   /** The payment address as written in the manifest, or undefined when the route uses an index. */
   address?: string;
   index?: number;
@@ -10,6 +12,7 @@ export interface RouteRef {
 
 export interface ResultGroup {
   routes: RouteRef[];
+  scheme: string;
   network: string;
   asset: string;
   price?: string;
