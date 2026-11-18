@@ -1,0 +1,13 @@
+#!/bin/sh
+# DabsProof leak protection: scan the commit message, and check the identity again
+# (git passes --author to hooks only from this point on).
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 2
+tools="$here/../tools"
+if ! command -v node >/dev/null 2>&1; then
+  echo "[dabsproof] node was not found, so the leak scan could not run. Commit refused." >&2
+  exit 2
+fi
+status=0
+node "$tools/check-identity.mjs" --configured || status=1
+node "$tools/scan.mjs" commit-msg "$1" || status=1
+exit $status

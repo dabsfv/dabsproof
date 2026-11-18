@@ -1,0 +1,10 @@
+#!/bin/sh
+# DabsProof leak protection: only refs/heads/main, fast-forward only, no tags; every
+# commit being pushed is scanned (content, file names, message, identity).
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd) || exit 2
+tools="$here/../tools"
+if ! command -v node >/dev/null 2>&1; then
+  echo "[dabsproof] node was not found, so the leak scan could not run. Push refused." >&2
+  exit 2
+fi
+exec node "$tools/scan.mjs" pre-push "$1" "$2"
