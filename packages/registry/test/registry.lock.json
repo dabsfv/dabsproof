@@ -1,0 +1,63 @@
+{
+  "X402-01": {
+    "version": 1,
+    "status": "experimental",
+    "kind": "both",
+    "severity": "high",
+    "subChecks": ["X402-01.burst", "X402-01.late-replay"]
+  },
+  "X402-02": {
+    "version": 1,
+    "status": "experimental",
+    "kind": "both",
+    "severity": "high",
+    "subChecks": ["X402-02.code-order", "X402-02.balance-race"]
+  },
+  "X402-03": {
+    "version": 1,
+    "status": "experimental",
+    "kind": "both",
+    "severity": "medium",
+    "subChecks": [
+      "X402-03.cross-route",
+      "X402-03.dup-index",
+      "X402-03.dynamic-per-pattern",
+      "X402-03.query-variants",
+      "X402-03.tiers",
+      "X402-03.stale-mapping",
+      "X402-03.unassigned-address",
+      "X402-03.index-range-overlap",
+      "X402-03.shared-payout"
+    ]
+  },
+  "X402-04": {
+    "version": 1,
+    "status": "experimental",
+    "kind": "live",
+    "severity": "medium",
+    "subChecks": ["X402-04.paid-headers", "X402-04.unpaid-after-paid"]
+  },
+  "X402-05": {
+    "version": 1,
+    "status": "experimental",
+    "kind": "both",
+    "severity": "medium",
+    "subChecks": ["X402-05.duplicate-header", "X402-05.legacy-header", "X402-05.logging"]
+  },
+  "X402-06": {
+    "version": 1,
+    "status": "experimental",
+    "kind": "both",
+    "severity": "medium",
+    "subChecks": ["X402-06.standin-always-valid", "X402-06.facilitator-error", "X402-06.facilitator-config-source"]
+  },
+  "X402-07": {
+    "version": 1,
+    "status": "experimental",
+    "kind": "live",
+    "severity": "high",
+    "subChecks": ["X402-07.burst-over-cap", "X402-07.single-over-remaining"]
+  },
+  "X402-08": { "version": 1, "status": "retired", "kind": null, "severity": null, "subChecks": [] },
+  "X402-03.upstream-binding": { "version": 1, "status": "watch", "kind": "static", "severity": null, "subChecks": [] }
+}

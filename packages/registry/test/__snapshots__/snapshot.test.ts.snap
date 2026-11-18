@@ -1,0 +1,1132 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`snapshots > JSON Schema 1`] = `
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "appliesTo": {
+          "additionalProperties": false,
+          "properties": {
+            "networks": {
+              "items": {
+                "const": "eip155:84532",
+                "type": "string",
+              },
+              "minItems": 1,
+              "type": "array",
+            },
+            "schemes": {
+              "items": {
+                "enum": [
+                  "exact",
+                  "upto",
+                ],
+                "type": "string",
+              },
+              "minItems": 1,
+              "type": "array",
+            },
+            "x402Versions": {
+              "items": {
+                "const": 2,
+                "type": "number",
+              },
+              "minItems": 1,
+              "type": "array",
+            },
+          },
+          "required": [
+            "x402Versions",
+            "schemes",
+            "networks",
+          ],
+          "type": "object",
+        },
+        "budget": {
+          "additionalProperties": false,
+          "properties": {
+            "burst": {
+              "maximum": 10,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "draft": {
+              "type": "boolean",
+            },
+            "maxSpendAtomic": {
+              "pattern": "^\\d+$",
+              "type": "string",
+            },
+            "payments": {
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "requestsPerRoute": {
+              "maximum": 20,
+              "minimum": 0,
+              "type": "integer",
+            },
+            "routes": {
+              "anyOf": [
+                {
+                  "maximum": 9007199254740991,
+                  "minimum": 0,
+                  "type": "integer",
+                },
+                {
+                  "const": "all",
+                  "type": "string",
+                },
+              ],
+            },
+          },
+          "required": [
+            "draft",
+            "requestsPerRoute",
+            "burst",
+            "routes",
+            "payments",
+          ],
+          "type": "object",
+        },
+        "changelog": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "change": {
+                "minLength": 1,
+                "type": "string",
+              },
+              "date": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string",
+              },
+              "version": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer",
+              },
+            },
+            "required": [
+              "version",
+              "date",
+              "change",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "escalation": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "to": {
+                "enum": [
+                  "critical",
+                  "high",
+                  "medium",
+                  "low",
+                ],
+                "type": "string",
+              },
+              "when": {
+                "minLength": 1,
+                "type": "string",
+              },
+            },
+            "required": [
+              "to",
+              "when",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "evidence": {
+          "items": {
+            "enum": [
+              "request-record",
+              "payment-terms",
+              "settlement-receipt",
+              "balance-delta",
+              "code-citation",
+              "config-finding",
+            ],
+            "type": "string",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "id": {
+          "pattern": "^X402-\\d{2}$",
+          "type": "string",
+        },
+        "kind": {
+          "enum": [
+            "static",
+            "live",
+            "both",
+          ],
+          "type": "string",
+        },
+        "outcomes": {
+          "additionalProperties": false,
+          "properties": {
+            "could-not-verify": {
+              "minLength": 1,
+              "type": "string",
+            },
+            "found-a-problem": {
+              "minLength": 1,
+              "type": "string",
+            },
+            "found-no-problem": {
+              "minLength": 1,
+              "type": "string",
+            },
+            "not-applicable": {
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+          "required": [
+            "found-a-problem",
+            "found-no-problem",
+            "could-not-verify",
+            "not-applicable",
+          ],
+          "type": "object",
+        },
+        "preconditions": {
+          "items": {
+            "enum": [
+              "two-paid-routes-same-terms",
+              "upto-route",
+              "ownership-verified",
+              "seller-uses-our-standin-facilitator",
+              "code-access",
+            ],
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "references": {
+          "items": {
+            "format": "uri",
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "remediation": {
+          "additionalProperties": false,
+          "properties": {
+            "fixKit": {
+              "enum": [
+                "per-route-address",
+                "guards",
+              ],
+              "type": "string",
+            },
+            "generalGuidance": {
+              "const": "General guidance. It has not been tested on your service.",
+              "type": "string",
+            },
+            "notAFix": {
+              "items": {
+                "minLength": 1,
+                "type": "string",
+              },
+              "type": "array",
+            },
+            "steps": {
+              "items": {
+                "minLength": 1,
+                "type": "string",
+              },
+              "minItems": 1,
+              "type": "array",
+            },
+            "summary": {
+              "minLength": 1,
+              "type": "string",
+            },
+          },
+          "required": [
+            "summary",
+            "steps",
+            "generalGuidance",
+          ],
+          "type": "object",
+        },
+        "severity": {
+          "enum": [
+            "critical",
+            "high",
+            "medium",
+            "low",
+          ],
+          "type": "string",
+        },
+        "status": {
+          "enum": [
+            "active",
+            "experimental",
+          ],
+          "type": "string",
+        },
+        "subChecks": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+              },
+              "kind": {
+                "enum": [
+                  "static",
+                  "live",
+                  "both",
+                ],
+                "type": "string",
+              },
+              "title": {
+                "minLength": 1,
+                "type": "string",
+              },
+            },
+            "required": [
+              "id",
+              "title",
+              "kind",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "version": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "whatItTests": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "whatSomeoneCouldDo": {
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+        "version",
+        "status",
+        "title",
+        "severity",
+        "kind",
+        "whatItTests",
+        "whatSomeoneCouldDo",
+        "preconditions",
+        "appliesTo",
+        "budget",
+        "evidence",
+        "outcomes",
+        "remediation",
+        "subChecks",
+        "references",
+        "changelog",
+      ],
+      "type": "object",
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "changelog": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "change": {
+                "minLength": 1,
+                "type": "string",
+              },
+              "date": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string",
+              },
+              "version": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer",
+              },
+            },
+            "required": [
+              "version",
+              "date",
+              "change",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "id": {
+          "pattern": "^X402-\\d{2}\\.[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "type": "string",
+        },
+        "kind": {
+          "enum": [
+            "static",
+            "live",
+            "both",
+          ],
+          "type": "string",
+        },
+        "references": {
+          "items": {
+            "format": "uri",
+            "type": "string",
+          },
+          "type": "array",
+        },
+        "status": {
+          "const": "watch",
+          "type": "string",
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "version": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer",
+        },
+        "watch": {
+          "additionalProperties": false,
+          "properties": {
+            "note": {
+              "minLength": 1,
+              "type": "string",
+            },
+            "status": {
+              "enum": [
+                "found-no-problem",
+                "could-not-verify",
+                "not-applicable",
+              ],
+              "type": "string",
+            },
+          },
+          "required": [
+            "status",
+            "note",
+          ],
+          "type": "object",
+        },
+        "whatItTests": {
+          "minLength": 1,
+          "type": "string",
+        },
+      },
+      "required": [
+        "id",
+        "version",
+        "status",
+        "title",
+        "kind",
+        "whatItTests",
+        "watch",
+        "references",
+        "changelog",
+      ],
+      "type": "object",
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "changelog": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "change": {
+                "minLength": 1,
+                "type": "string",
+              },
+              "date": {
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "type": "string",
+              },
+              "version": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer",
+              },
+            },
+            "required": [
+              "version",
+              "date",
+              "change",
+            ],
+            "type": "object",
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "id": {
+          "pattern": "^X402-\\d{2}$",
+          "type": "string",
+        },
+        "retiredReason": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "status": {
+          "const": "retired",
+          "type": "string",
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string",
+        },
+        "version": {
+          "maximum": 9007199254740991,
+          "minimum": 1,
+          "type": "integer",
+        },
+      },
+      "required": [
+        "id",
+        "version",
+        "status",
+        "title",
+        "retiredReason",
+        "changelog",
+      ],
+      "type": "object",
+    },
+  ],
+}
+`;
+
+exports[`snapshots > registry 1`] = `
+[
+  {
+    "appliesTo": {
+      "networks": [
+        "eip155:84532",
+      ],
+      "schemes": [
+        "exact",
+      ],
+      "x402Versions": [
+        2,
+      ],
+    },
+    "budget": {
+      "burst": 10,
+      "draft": true,
+      "payments": 2,
+      "requestsPerRoute": 20,
+      "routes": 1,
+    },
+    "changelog": [
+      {
+        "change": "First version. The severity is a starting point and will be reviewed after real runs.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "evidence": [
+      "request-record",
+      "payment-terms",
+      "settlement-receipt",
+    ],
+    "id": "X402-01",
+    "kind": "both",
+    "outcomes": {
+      "could-not-verify": "The check could not finish, for example because a service it depends on did not answer. This is not a finding about your service.",
+      "found-a-problem": "One payment unlocked the paid content more than once.",
+      "found-no-problem": "Each payment unlocked the paid content once, including when copies arrived together or later. This covers only what this check tried.",
+      "not-applicable": "This route does not take payments.",
+    },
+    "preconditions": [
+      "ownership-verified",
+    ],
+    "references": [],
+    "remediation": {
+      "generalGuidance": "General guidance. It has not been tested on your service.",
+      "notAFix": [
+        "Checking for repeats in memory on one server. Copies can reach other servers, or arrive at the same moment.",
+      ],
+      "steps": [
+        "Keep a unique record for each payment, and create it in the same database operation that checks it is new.",
+        "Send the content only after that operation succeeds.",
+        "Answer any later copy of the same payment with a 402 reply.",
+      ],
+      "summary": "Record each payment as used before you send the content, in one step that cannot run twice for the same payment.",
+    },
+    "severity": "high",
+    "status": "experimental",
+    "subChecks": [
+      {
+        "id": "X402-01.burst",
+        "kind": "live",
+        "title": "Ten copies of one fresh payment sent at the same moment",
+      },
+      {
+        "id": "X402-01.late-replay",
+        "kind": "live",
+        "title": "The same payment sent again after it has settled",
+      },
+    ],
+    "title": "One payment, one delivery, even under a burst",
+    "version": 1,
+    "whatItTests": "Whether one signed payment can unlock your paid content more than once, when copies arrive together or later.",
+    "whatSomeoneCouldDo": "Pay once and receive the paid content several times, by sending copies of the same signed payment at the same moment or again later.",
+  },
+  {
+    "appliesTo": {
+      "networks": [
+        "eip155:84532",
+      ],
+      "schemes": [
+        "exact",
+      ],
+      "x402Versions": [
+        2,
+      ],
+    },
+    "budget": {
+      "burst": 2,
+      "draft": true,
+      "payments": 2,
+      "requestsPerRoute": 4,
+      "routes": 1,
+    },
+    "changelog": [
+      {
+        "change": "First version. The severity is a starting point and will be reviewed after real runs.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "evidence": [
+      "code-citation",
+      "request-record",
+      "settlement-receipt",
+      "balance-delta",
+    ],
+    "id": "X402-02",
+    "kind": "both",
+    "outcomes": {
+      "could-not-verify": "The check could not finish, for example because a service it depends on did not answer. This is not a finding about your service.",
+      "found-a-problem": "Paid content was sent for a payment that did not settle.",
+      "found-no-problem": "Paid content was sent only after the payment settled. This covers only what this check tried.",
+      "not-applicable": "This route does not take payments.",
+    },
+    "preconditions": [
+      "ownership-verified",
+      "code-access",
+    ],
+    "references": [],
+    "remediation": {
+      "generalGuidance": "General guidance. It has not been tested on your service.",
+      "notAFix": [
+        "Verifying a payment without settling it. A verified payment can still fail to settle.",
+      ],
+      "steps": [
+        "Wait for the settlement answer before you write any of the response.",
+        "Treat a settlement error or timeout as unpaid.",
+        "Do not stream or cache any content before settlement succeeds.",
+      ],
+      "summary": "Settle the payment first, then send the content. If settlement fails, send a 402 reply and no content.",
+    },
+    "severity": "high",
+    "status": "experimental",
+    "subChecks": [
+      {
+        "id": "X402-02.code-order",
+        "kind": "static",
+        "title": "The code sends content only after settlement succeeds",
+      },
+      {
+        "id": "X402-02.balance-race",
+        "kind": "live",
+        "title": "Two fresh payments from a wallet that can pay for only one",
+      },
+    ],
+    "title": "Content only after the payment has settled",
+    "version": 1,
+    "whatItTests": "Whether your service waits for the payment to settle before it sends the paid content.",
+    "whatSomeoneCouldDo": "Get paid content without paying, by sending a payment that is valid when checked but never settles, for example because the same funds are spent elsewhere first.",
+  },
+  {
+    "appliesTo": {
+      "networks": [
+        "eip155:84532",
+      ],
+      "schemes": [
+        "exact",
+      ],
+      "x402Versions": [
+        2,
+      ],
+    },
+    "budget": {
+      "burst": 0,
+      "draft": true,
+      "payments": 4,
+      "requestsPerRoute": 20,
+      "routes": "all",
+    },
+    "changelog": [
+      {
+        "change": "First version. The severity is a starting point and will be reviewed after real runs.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "escalation": [
+      {
+        "to": "high",
+        "when": "routes with the same price give access to content of different value",
+      },
+    ],
+    "evidence": [
+      "config-finding",
+      "code-citation",
+      "request-record",
+      "payment-terms",
+    ],
+    "id": "X402-03",
+    "kind": "both",
+    "outcomes": {
+      "could-not-verify": "The check could not finish, for example because a service it depends on did not answer. This is not a finding about your service.",
+      "found-a-problem": "A payment made for one route was accepted by another route.",
+      "found-no-problem": "Payments were accepted only on the route they were made for. This covers only what this check tried.",
+      "not-applicable": "Fewer than two paid routes share the same price and terms, so a payment cannot be moved between them.",
+    },
+    "preconditions": [
+      "two-paid-routes-same-terms",
+      "ownership-verified",
+    ],
+    "references": [],
+    "remediation": {
+      "fixKit": "per-route-address",
+      "generalGuidance": "General guidance. It has not been tested on your service.",
+      "notAFix": [
+        "Different prices alone. Two routes with the same price still accept each other's payments.",
+      ],
+      "steps": [
+        "Give each paid route its own payment address, so a payment's recipient shows which route it was for. It is not part of the x402 specification, and whether official guidance recommends it has not been checked.",
+        "Before sending content, check that the payment's recipient is the address of the route being requested.",
+        "Keep the route-to-address list in one place, and check it when your service starts.",
+      ],
+      "summary": "Make each payment usable only on the route it was made for.",
+    },
+    "severity": "medium",
+    "status": "experimental",
+    "subChecks": [
+      {
+        "id": "X402-03.cross-route",
+        "kind": "both",
+        "title": "A payment made for one route is accepted by another",
+      },
+      {
+        "id": "X402-03.dup-index",
+        "kind": "static",
+        "title": "Two routes are given the same address index",
+      },
+      {
+        "id": "X402-03.dynamic-per-pattern",
+        "kind": "static",
+        "title": "Every page of a dynamic route shares one payment address",
+      },
+      {
+        "id": "X402-03.query-variants",
+        "kind": "live",
+        "title": "A payment for one query string is accepted for another",
+      },
+      {
+        "id": "X402-03.tiers",
+        "kind": "static",
+        "title": "Different price tiers share a payment address",
+      },
+      {
+        "id": "X402-03.stale-mapping",
+        "kind": "static",
+        "title": "The route-to-address list is out of date with the routes",
+      },
+      {
+        "id": "X402-03.unassigned-address",
+        "kind": "static",
+        "title": "A paid route has no payment address of its own",
+      },
+      {
+        "id": "X402-03.index-range-overlap",
+        "kind": "static",
+        "title": "Two ranges of address indexes overlap",
+      },
+      {
+        "id": "X402-03.shared-payout",
+        "kind": "static",
+        "title": "Several routes pay to one address",
+      },
+    ],
+    "title": "A payment is tied to the route it was made for",
+    "version": 1,
+    "whatItTests": "Whether a payment made for one paid route can be used on a different paid route that has the same price and terms.",
+    "whatSomeoneCouldDo": "Pay for one route and use that payment to get a different route with the same price, or use one payment across many routes.",
+  },
+  {
+    "appliesTo": {
+      "networks": [
+        "eip155:84532",
+      ],
+      "schemes": [
+        "exact",
+      ],
+      "x402Versions": [
+        2,
+      ],
+    },
+    "budget": {
+      "burst": 0,
+      "draft": true,
+      "payments": 1,
+      "requestsPerRoute": 6,
+      "routes": 1,
+    },
+    "changelog": [
+      {
+        "change": "First version. The severity is a starting point and will be reviewed after real runs.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "escalation": [
+      {
+        "to": "high",
+        "when": "the paid content is specific to the payer",
+      },
+    ],
+    "evidence": [
+      "request-record",
+    ],
+    "id": "X402-04",
+    "kind": "live",
+    "outcomes": {
+      "could-not-verify": "The check could not finish, for example because a service it depends on did not answer. This is not a finding about your service.",
+      "found-a-problem": "A paid response could be stored by a shared cache, or was served without payment after a paid request.",
+      "found-no-problem": "Paid responses were marked as not to be stored, and were not served again without payment. This covers only what this check tried.",
+      "not-applicable": "This route does not take payments.",
+    },
+    "preconditions": [
+      "ownership-verified",
+    ],
+    "references": [],
+    "remediation": {
+      "generalGuidance": "General guidance. It has not been tested on your service.",
+      "steps": [
+        "Send \`Cache-Control: private, no-store\` on every paid response, and \`Cache-Control: no-store\` on every 402 reply.",
+        "Check that your hosting or CDN settings do not cache paid routes whatever the headers say.",
+      ],
+      "summary": "Mark every paid response as private and not to be stored, and make sure no cache in front of paid routes ignores that.",
+    },
+    "severity": "medium",
+    "status": "experimental",
+    "subChecks": [
+      {
+        "id": "X402-04.paid-headers",
+        "kind": "live",
+        "title": "Paid responses tell caches not to store them",
+      },
+      {
+        "id": "X402-04.unpaid-after-paid",
+        "kind": "live",
+        "title": "A request without payment, sent after a paid one, gets the paid content",
+      },
+    ],
+    "title": "Paid responses cannot be cached and re-served",
+    "version": 1,
+    "whatItTests": "Whether a shared cache, such as a CDN, could store a paid response and give it to people who have not paid.",
+    "whatSomeoneCouldDo": "Get paid content free from a cache, after someone else has paid for it.",
+  },
+  {
+    "appliesTo": {
+      "networks": [
+        "eip155:84532",
+      ],
+      "schemes": [
+        "exact",
+      ],
+      "x402Versions": [
+        2,
+      ],
+    },
+    "budget": {
+      "burst": 0,
+      "draft": true,
+      "payments": 3,
+      "requestsPerRoute": 6,
+      "routes": 1,
+    },
+    "changelog": [
+      {
+        "change": "First version. The severity is a starting point and will be reviewed after real runs.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "evidence": [
+      "request-record",
+      "code-citation",
+      "config-finding",
+    ],
+    "id": "X402-05",
+    "kind": "both",
+    "outcomes": {
+      "could-not-verify": "The check could not finish, for example because a service it depends on did not answer. This is not a finding about your service.",
+      "found-a-problem": "Your service accepted more than one payment header, read different headers in different places, or wrote a signed payment to a log.",
+      "found-no-problem": "Your service read one payment header, and the logs checked held no signed payments. This covers only what this check tried.",
+      "not-applicable": "This route does not take payments.",
+    },
+    "preconditions": [
+      "ownership-verified",
+      "code-access",
+    ],
+    "references": [],
+    "remediation": {
+      "generalGuidance": "General guidance. It has not been tested on your service.",
+      "steps": [
+        "Refuse a request that has the payment header twice, or both \`PAYMENT-SIGNATURE\` and \`X-PAYMENT\`.",
+        "Pass the decoded payment from that one place to every later step.",
+        "Never log the payment header, its signature or its nonce. Log only that a payment was present.",
+      ],
+      "summary": "Read the payment from one header, in one place, and refuse requests that carry more than one.",
+    },
+    "severity": "medium",
+    "status": "experimental",
+    "subChecks": [
+      {
+        "id": "X402-05.duplicate-header",
+        "kind": "live",
+        "title": "A request carrying the payment header twice",
+      },
+      {
+        "id": "X402-05.legacy-header",
+        "kind": "live",
+        "title": "A request carrying both the current header (\`PAYMENT-SIGNATURE\`) and the older header (\`X-PAYMENT\`)",
+      },
+      {
+        "id": "X402-05.logging",
+        "kind": "static",
+        "title": "The payment header is written to logs",
+      },
+    ],
+    "title": "The payment header is read once and kept out of logs",
+    "version": 1,
+    "whatItTests": "Whether your service reads exactly one payment header, in one place, and keeps signed payments out of logs.",
+    "whatSomeoneCouldDo": "Send two different payments in one request, so that one part of your service checks one payment and another part settles the other. Or take a signed payment from a log and use it before it is settled.",
+  },
+  {
+    "appliesTo": {
+      "networks": [
+        "eip155:84532",
+      ],
+      "schemes": [
+        "exact",
+      ],
+      "x402Versions": [
+        2,
+      ],
+    },
+    "budget": {
+      "burst": 0,
+      "draft": true,
+      "payments": 2,
+      "requestsPerRoute": 8,
+      "routes": 1,
+    },
+    "changelog": [
+      {
+        "change": "First version. The severity is a starting point and will be reviewed after real runs.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "escalation": [
+      {
+        "to": "high",
+        "when": "a wrong answer from the facilitator leads to content being sent",
+      },
+    ],
+    "evidence": [
+      "request-record",
+      "settlement-receipt",
+      "config-finding",
+    ],
+    "id": "X402-06",
+    "kind": "both",
+    "outcomes": {
+      "could-not-verify": "The check could not finish, for example because a service it depends on did not answer. This is not a finding about your service. Part of this check needs a test copy of your service pointed at our test facilitator.",
+      "found-a-problem": "Your service sent paid content after the facilitator gave an error, or accepted an answer that did not show a settled payment.",
+      "found-no-problem": "Your service sent content only when the facilitator confirmed settlement. This covers only what this check tried.",
+      "not-applicable": "This route does not take payments.",
+    },
+    "preconditions": [
+      "ownership-verified",
+      "seller-uses-our-standin-facilitator",
+      "code-access",
+    ],
+    "references": [],
+    "remediation": {
+      "generalGuidance": "General guidance. It has not been tested on your service.",
+      "steps": [
+        "Check that the answer says the payment settled, and that its amount, recipient and network match what the route asks for.",
+        "Treat errors, timeouts and unexpected answers as unpaid.",
+        "Read the facilitator's address from your own settings only, never from the request.",
+      ],
+      "summary": "Treat anything other than a clear, successful settlement answer from the facilitator as unpaid.",
+    },
+    "severity": "medium",
+    "status": "experimental",
+    "subChecks": [
+      {
+        "id": "X402-06.standin-always-valid",
+        "kind": "live",
+        "title": "With a test facilitator that approves everything, your service still checks the payment itself",
+      },
+      {
+        "id": "X402-06.facilitator-error",
+        "kind": "live",
+        "title": "Your service treats an error from the facilitator as unpaid",
+      },
+      {
+        "id": "X402-06.facilitator-config-source",
+        "kind": "static",
+        "title": "The facilitator's address comes only from your own settings",
+      },
+    ],
+    "title": "The seller checks the facilitator's answer",
+    "version": 1,
+    "whatItTests": "Whether your service checks that the facilitator (the payment service that checks and settles payments) really approved and settled the payment, and what it does when the facilitator gives an error or an unexpected answer.",
+    "whatSomeoneCouldDo": "Get paid content without paying, if your service treats an error, a timeout or a changed answer from the facilitator as success, or if someone else can change which facilitator your service uses.",
+  },
+  {
+    "appliesTo": {
+      "networks": [
+        "eip155:84532",
+      ],
+      "schemes": [
+        "upto",
+      ],
+      "x402Versions": [
+        2,
+      ],
+    },
+    "budget": {
+      "burst": 10,
+      "draft": true,
+      "payments": 2,
+      "requestsPerRoute": 12,
+      "routes": 1,
+    },
+    "changelog": [
+      {
+        "change": "First version. The severity is a starting point and will be reviewed after real runs.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "evidence": [
+      "request-record",
+      "payment-terms",
+      "settlement-receipt",
+    ],
+    "id": "X402-07",
+    "kind": "live",
+    "outcomes": {
+      "could-not-verify": "The check could not finish, for example because a service it depends on did not answer. This is not a finding about your service.",
+      "found-a-problem": "Usage went over the agreed cap.",
+      "found-no-problem": "Usage stayed within the agreed cap, including during a burst. This covers only what this check tried.",
+      "not-applicable": "This route does not use pay-by-use caps.",
+    },
+    "preconditions": [
+      "ownership-verified",
+      "upto-route",
+    ],
+    "references": [],
+    "remediation": {
+      "generalGuidance": "General guidance. It has not been tested on your service.",
+      "steps": [
+        "Before serving, reserve the amount in one indivisible step that also checks what is left.",
+        "Refuse a request that would go over the cap.",
+        "Release any unused reservation only after the work is finished.",
+      ],
+      "summary": "Reserve usage against the cap in one step before doing the work, and refuse anything over what is left.",
+    },
+    "severity": "high",
+    "status": "experimental",
+    "subChecks": [
+      {
+        "id": "X402-07.burst-over-cap",
+        "kind": "live",
+        "title": "Several requests at the same moment that together go over the cap",
+      },
+      {
+        "id": "X402-07.single-over-remaining",
+        "kind": "live",
+        "title": "One request that asks for more than is left under the cap",
+      },
+    ],
+    "title": "Pay-by-use caps cannot be overspent",
+    "version": 1,
+    "whatItTests": "For routes that charge by use up to a cap, whether someone can be served more than the cap they agreed to pay.",
+    "whatSomeoneCouldDo": "Use more than they paid for, by sending several requests at once, or one request larger than what is left.",
+  },
+  {
+    "changelog": [
+      {
+        "change": "Retired before release.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "id": "X402-08",
+    "retiredReason": "Retired before release. Key handling is not part of these checks. This ID is never reused.",
+    "status": "retired",
+    "title": "Retired check",
+    "version": 1,
+  },
+  {
+    "changelog": [
+      {
+        "change": "First version.",
+        "date": "2026-11-18",
+        "version": 1,
+      },
+    ],
+    "id": "X402-03.upstream-binding",
+    "kind": "static",
+    "references": [],
+    "status": "watch",
+    "title": "Watch: can the x402 protocol itself tie a payment to a route?",
+    "version": 1,
+    "watch": {
+      "note": "The upstream status has not been checked yet. This entry gives information only and never reports a problem.",
+      "status": "could-not-verify",
+    },
+    "whatItTests": "Whether the x402 protocol or its official software offers a built-in way to tie a payment to the route it was made for. That would make X402-03 easier to fix.",
+  },
+]
+`;

@@ -15,7 +15,8 @@
   "scripts": {
     "build": "tsc -b && tsup",
     "typecheck": "tsc -b",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint:wording": "node dist/lint-cli.js"
   },
   "dependencies": {
     "@dabsproof/brand": "workspace:*",

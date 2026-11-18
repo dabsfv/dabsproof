@@ -45,10 +45,8 @@ jobs:
       - name: Test
         run: pnpm test
 
-      - name: Wording lint - NOT IMPLEMENTED YET (step 0.6), nothing checked
-        run: |
-          echo "::warning title=Wording lint not implemented::The wording lint does not exist yet; it arrives in step 0.6. Nothing was checked. This step is not a pass."
-          echo "NOT IMPLEMENTED: the wording lint did not run. Nothing was checked."
+      - name: Wording lint (registry text)
+        run: pnpm lint:wording
 
       - name: Lint (Biome)
         run: pnpm lint

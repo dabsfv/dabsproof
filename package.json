@@ -10,7 +10,8 @@
     "build": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo run build",
     "typecheck": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo run typecheck",
     "test": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo run test",
-    "lint": "biome check packages"
+    "lint": "biome check packages",
+    "lint:wording": "TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 turbo run lint:wording"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.6",
