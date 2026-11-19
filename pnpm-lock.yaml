@@ -69,6 +69,18 @@ importers:
         specifier: 2.4.0
         version: 2.4.0
 
+  packages/fixkit:
+    dependencies:
+      '@dabsproof/brand':
+        specifier: workspace:*
+        version: link:../brand
+      '@dabsproof/core':
+        specifier: workspace:*
+        version: link:../core
+      '@dabsproof/evm':
+        specifier: workspace:*
+        version: link:../evm
+
   packages/registry:
     dependencies:
       zod:

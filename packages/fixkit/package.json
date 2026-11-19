@@ -1,0 +1,30 @@
+{
+  "name": "@dabsproof/fixkit",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./next": {
+      "types": "./dist/types/next/index.d.ts",
+      "import": "./dist/next.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b && tsup",
+    "typecheck": "tsc -b && tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "lint:wording": "node dist/lint-cli.js"
+  },
+  "dependencies": {
+    "@dabsproof/brand": "workspace:*",
+    "@dabsproof/core": "workspace:*",
+    "@dabsproof/evm": "workspace:*"
+  }
+}
