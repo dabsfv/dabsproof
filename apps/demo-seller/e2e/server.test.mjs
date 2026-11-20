@@ -43,32 +43,31 @@ const git = (...args) => execFileSync('git', args, { cwd: APP_DIR, encoding: 'ut
 const codeFor = (request) => managerRefusal(MAPPING, request)?.code;
 const ORIGIN = `http://${HOST}:${PORT}`;
 const USDC = ALLOWED_NETWORKS[BASE_SEPOLIA].assets[0].address;
-const ALPHA_PRICE = JSON.parse(readFileSync(MAPPING, 'utf8')).routes.find((r) => r.route === '/api/alpha').price;
+const MAPPED = JSON.parse(readFileSync(MAPPING, 'utf8')).routes;
+const priceOf = (route, tier) => MAPPED.find((r) => r.route === route && r.tier === tier).price;
+const ALPHA_PRICE = priceOf('/api/alpha');
+const ITEM_PRICE = priceOf('/api/item/[id]');
 /** Every key at any depth of a decoded value. */
 const keysOf = (v, out = []) => {
   if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) out.push(k, ...keysOf(x));
   return out;
 };
 
-/**
- * Item and tiered (until S5) and every refusal: a body is only { payTo: <address> } or only
- * { refused: <code> }. Checked as a boolean before any comparison.
- */
-const plain = (b) =>
-  !!b &&
-  ((Object.keys(b).join() === 'payTo' && /^0x[0-9a-fA-F]{40}$/.test(b.payTo)) ||
-    (Object.keys(b).join() === 'refused' && /^[a-z][a-z-]{2,40}$/.test(b.refused)));
+/** Every refusal: a body is only { refused: <code> }. Checked as a boolean before any comparison. */
+const plain = (b) => !!b && Object.keys(b).join() === 'refused' && /^[a-z][a-z-]{2,40}$/.test(b.refused);
 const expectPlain = (r, status, body) => {
   expect(plain(r.body)).toBe(true);
   expect(r.status).toBe(status);
   expect(r.body).toEqual(body);
 };
-/** A 402 whose header decodes (by @x402/core, test-only) to one accepts entry paying the given address; the body is the same object. */
-const expectRequired = (r, payTo) => {
+/** A 402 whose header decodes (by @x402/core, test-only) to one accepts entry with this payTo and amount, for this path; the body is the same object. */
+const expectRequired = (r, { payTo, path, amount }) => {
   expect(r.status).toBe(402);
   const d = decodePaymentRequiredHeader(r.headers['payment-required']);
+  expect(d.resource).toEqual({ url: `${ORIGIN}${path}` });
   expect(d.accepts.length).toBe(1);
   expect(d.accepts[0].payTo).toBe(payTo);
+  expect(d.accepts[0].amount).toBe(amount);
   expect(r.body).toEqual(d);
 };
 const refusesAll = async (server, code) => {
@@ -111,13 +110,30 @@ describe('T4 and T13 good start-up (one server start for both)', () => {
   });
 
   it('T4 addresses match evm source; a missing tier is refused; id text forms as observed', async () => {
-    expectRequired(await good.get('alpha', '/api/alpha'), expectedAt(0));
-    expectPlain(await good.get('item', '/api/item/5'), 200, { payTo: expectedAt(1005) });
-    expectPlain(await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'pro' }), 200, { payTo: expectedAt(4) });
-    expectPlain(await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'basic' }), 200, { payTo: expectedAt(4) });
+    expectRequired(await good.get('alpha', '/api/alpha'), {
+      payTo: expectedAt(0),
+      path: '/api/alpha',
+      amount: ALPHA_PRICE,
+    });
+    expectRequired(await good.get('item', '/api/item/5'), {
+      payTo: expectedAt(1005),
+      path: '/api/item/5',
+      amount: ITEM_PRICE,
+    });
+    // The two tiers must have different prices, or this test could not tell them apart.
+    expect(priceOf('/api/tiered', 'pro') === priceOf('/api/tiered', 'basic')).toBe(false);
+    const pro = await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'pro' });
+    expectRequired(pro, { payTo: expectedAt(4), path: '/api/tiered', amount: priceOf('/api/tiered', 'pro') });
+    const basic = await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'basic' });
+    expectRequired(basic, { payTo: expectedAt(4), path: '/api/tiered', amount: priceOf('/api/tiered', 'basic') });
     expectPlain(await good.get('tiered', '/api/tiered'), 503, { refused: codeFor({ route: '/api/tiered' }) });
-    // Observed behaviour, not a claim that it is right: "05" is accepted as the same item as "5".
-    expectPlain(await good.get('item', '/api/item/05'), 200, { payTo: expectedAt(1005) });
+    // Observed behaviour, not a claim that it is right: "05" is accepted as the same item as "5",
+    // and resource.url keeps the id text as given.
+    expectRequired(await good.get('item', '/api/item/05'), {
+      payTo: expectedAt(1005),
+      path: '/api/item/05',
+      amount: ITEM_PRICE,
+    });
     for (const text of ['1e3', '0x10', ' 5', '5.0', '+5', '5abc', '1'.repeat(40)]) {
       const code = codeFor({ route: '/api/item/[id]', id: text });
       expectPlain(await good.get('item', `/api/item/${encodeURIComponent(text)}`), 503, { refused: code });
@@ -217,8 +233,16 @@ describe('T6 key material in a NEXT_PUBLIC_ variable', () => {
 describe('T7 no start-up check: the fallback runs the checks', () => {
   it('right addresses; out-of-range ids and an unknown tier are refused', async () => {
     server = await startServer({ ...XPUB, DEMO_SKIP_REGISTER: '1' });
-    expectRequired(await server.get('alpha', '/api/alpha'), expectedAt(0));
-    expectPlain(await server.get('item', '/api/item/5'), 200, { payTo: expectedAt(1005) });
+    expectRequired(await server.get('alpha', '/api/alpha'), {
+      payTo: expectedAt(0),
+      path: '/api/alpha',
+      amount: ALPHA_PRICE,
+    });
+    expectRequired(await server.get('item', '/api/item/5'), {
+      payTo: expectedAt(1005),
+      path: '/api/item/5',
+      amount: ITEM_PRICE,
+    });
     for (const id of ['0', '10000']) {
       const code = codeFor({ route: '/api/item/[id]', id });
       expect(code === 'id-out-of-range').toBe(true);

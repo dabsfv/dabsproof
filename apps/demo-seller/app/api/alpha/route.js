@@ -1,4 +1,5 @@
 import { getPayToManager } from '@dabsproof/fixkit/next';
+import { entryFor } from '../../../lib/entry.js';
 import { configuredOrigin } from '../../../lib/origin.js';
 import { routeOptions } from '../../../lib/payto.js';
 import { refusal, refusedWith } from '../../../lib/respond.js';
@@ -7,14 +8,6 @@ import { paymentRequired } from '../../../lib/x402.js';
 export const dynamic = 'force-dynamic';
 
 const ROUTE = '/api/alpha';
-
-/** The one mapping entry for this route: no tier, scheme exact or not given. Anything else gives null. */
-const entryFor = (manifest) => {
-  const found = (manifest?.routes ?? []).filter(
-    (r) => r.route === ROUTE && r.tier === undefined && (r.scheme ?? 'exact') === 'exact',
-  );
-  return found.length === 1 ? found[0] : null;
-};
 
 // Every request currently gets the 402 reply. A request carrying a payment header is not looked at;
 // what to do with one is undecided (S6). resource.url is the configured origin (DEMO_ORIGIN) plus this
@@ -27,7 +20,7 @@ export function GET() {
   try {
     const manager = getPayToManager(routeOptions());
     const payTo = manager.payToFor({ route: ROUTE });
-    const entry = entryFor(manager.validation?.manifest);
+    const entry = entryFor(manager.validation?.manifest, ROUTE);
     if (entry === null) return refusedWith('price-not-found');
     const origin = configuredOrigin(process.env.DEMO_ORIGIN);
     if (!origin.ok) return refusedWith(origin.code);
