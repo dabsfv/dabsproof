@@ -40,8 +40,8 @@ export function paymentRequired({ entry, payTo, url }) {
   if (typeof payTo !== 'string' || !ADDRESS.test(payTo)) return { ok: false, code: 'bad-pay-to' };
   let resource;
   try {
-    // Origin and path only, no query string (our choice). The origin is taken from the request URL as
-    // the server sees it; it reflects the client's Host header (expected from how request URLs are built; not checked).
+    // The caller supplies the URL. This function keeps its origin and path and drops the query (our
+    // choice); nothing here checks where the URL came from.
     const u = new URL(url);
     if (u.protocol !== 'http:' && u.protocol !== 'https:') return { ok: false, code: 'bad-url' };
     resource = { url: `${u.origin}${u.pathname}` };

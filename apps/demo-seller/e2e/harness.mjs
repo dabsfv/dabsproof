@@ -117,7 +117,7 @@ export async function startServer(extra = {}) {
   requestCounts.push(counts);
   const child = spawn(process.execPath, [NEXT, 'start', '-H', HOST, '-p', String(PORT)], {
     cwd: APP_DIR,
-    env: cleanEnv(home, extra),
+    env: cleanEnv(home, { DEMO_ORIGIN: `http://${HOST}:${PORT}`, ...extra }),
     detached: true,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -146,13 +146,23 @@ export async function startServer(extra = {}) {
       const res = await fetch(`http://${HOST}:${PORT}${path}`, { headers, signal: AbortSignal.timeout(30_000) });
       const text = await res.text();
       bodies.push(text);
+      // The payment header and its decoded text are checked by T11 like any body; never printed.
+      const required = res.headers.get('payment-required');
+      if (required !== null) {
+        bodies.push(required);
+        try {
+          bodies.push(atob(required));
+        } catch {
+          // Not base64: nothing extra is pushed.
+        }
+      }
       let body = null;
       try {
         body = JSON.parse(text);
       } catch {
         // Not JSON: the body stays null, which the tests treat as a failure.
       }
-      return { status: res.status, body };
+      return { status: res.status, body, headers: Object.fromEntries(res.headers) };
     },
     async stop() {
       if (stopped) return stopped;

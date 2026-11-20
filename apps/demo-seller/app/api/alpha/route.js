@@ -1,12 +1,39 @@
 import { getPayToManager } from '@dabsproof/fixkit/next';
+import { configuredOrigin } from '../../../lib/origin.js';
 import { routeOptions } from '../../../lib/payto.js';
-import { paid, refusal } from '../../../lib/respond.js';
+import { refusal, refusedWith } from '../../../lib/respond.js';
+import { paymentRequired } from '../../../lib/x402.js';
 
 export const dynamic = 'force-dynamic';
 
+const ROUTE = '/api/alpha';
+
+/** The one mapping entry for this route: no tier, scheme exact or not given. Anything else gives null. */
+const entryFor = (manifest) => {
+  const found = (manifest?.routes ?? []).filter(
+    (r) => r.route === ROUTE && r.tier === undefined && (r.scheme ?? 'exact') === 'exact',
+  );
+  return found.length === 1 ? found[0] : null;
+};
+
+// Every request currently gets the 402 reply. A request carrying a payment header is not looked at;
+// what to do with one is undecided (S6). resource.url is the configured origin (DEMO_ORIGIN) plus this
+// route's path; it is not taken from the request. Observed once, not a claim: under Next.js 16.4.6,
+// next start -H 127.0.0.1, on one Mac, request.url named localhost:4319 although every request went
+// to 127.0.0.1:4319; why could not be verified, and other setups were not tested. Whether a buyer
+// reads the body, or accepts this reply at all, is not verified. Fix kit refusals stay 503 and come
+// first. price-not-found is a backstop: payToFor refuses an unmapped route first, and no test reaches it.
 export function GET() {
   try {
-    return paid(getPayToManager(routeOptions()).payToFor({ route: '/api/alpha' }));
+    const manager = getPayToManager(routeOptions());
+    const payTo = manager.payToFor({ route: ROUTE });
+    const entry = entryFor(manager.validation?.manifest);
+    if (entry === null) return refusedWith('price-not-found');
+    const origin = configuredOrigin(process.env.DEMO_ORIGIN);
+    if (!origin.ok) return refusedWith(origin.code);
+    const r = paymentRequired({ entry, payTo, url: `${origin.origin}${ROUTE}` });
+    if (!r.ok) return refusedWith(r.code);
+    return new Response(r.body, { status: r.status, headers: r.headers });
   } catch (error) {
     return refusal(error);
   }

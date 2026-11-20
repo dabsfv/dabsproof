@@ -2,13 +2,19 @@
 // source, and every expected code and log line from the fix kit's source, run in this process.
 // Captured output and bodies are only ever checked as true or false; none is printed.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { decodePaymentRequiredHeader } from '@x402/core/http';
+import { parsePaymentRequired } from '@x402/core/schemas';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { createRunContext, inspectPaymentRequired } from '../../../packages/core/src/index.ts';
+import { ALLOWED_NETWORKS, BASE_SEPOLIA } from '../../../packages/evm/src/index.ts';
 import {
   APP_DIR,
   captured,
+  HOST,
   mappingDir,
+  PORT,
   portOpen,
   removeOnExit,
   requestCounts,
@@ -35,8 +41,19 @@ const ENV_FILE = join(APP_DIR, '.env.production.local');
 const fakes = { publicKey: fake64Hex(), serverKey: fakeServerKey() };
 const git = (...args) => execFileSync('git', args, { cwd: APP_DIR, encoding: 'utf8' });
 const codeFor = (request) => managerRefusal(MAPPING, request)?.code;
+const ORIGIN = `http://${HOST}:${PORT}`;
+const USDC = ALLOWED_NETWORKS[BASE_SEPOLIA].assets[0].address;
+const ALPHA_PRICE = JSON.parse(readFileSync(MAPPING, 'utf8')).routes.find((r) => r.route === '/api/alpha').price;
+/** Every key at any depth of a decoded value. */
+const keysOf = (v, out = []) => {
+  if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) out.push(k, ...keysOf(x));
+  return out;
+};
 
-/** A body is only { payTo: <address> } or only { refused: <code> }. Checked as a boolean before any comparison. */
+/**
+ * Item and tiered (until S5) and every refusal: a body is only { payTo: <address> } or only
+ * { refused: <code> }. Checked as a boolean before any comparison.
+ */
 const plain = (b) =>
   !!b &&
   ((Object.keys(b).join() === 'payTo' && /^0x[0-9a-fA-F]{40}$/.test(b.payTo)) ||
@@ -45,6 +62,14 @@ const expectPlain = (r, status, body) => {
   expect(plain(r.body)).toBe(true);
   expect(r.status).toBe(status);
   expect(r.body).toEqual(body);
+};
+/** A 402 whose header decodes (by @x402/core, test-only) to one accepts entry paying the given address; the body is the same object. */
+const expectRequired = (r, payTo) => {
+  expect(r.status).toBe(402);
+  const d = decodePaymentRequiredHeader(r.headers['payment-required']);
+  expect(d.accepts.length).toBe(1);
+  expect(d.accepts[0].payTo).toBe(payTo);
+  expect(r.body).toEqual(d);
 };
 const refusesAll = async (server, code) => {
   expectPlain(await server.get('alpha', '/api/alpha'), 503, { refused: code });
@@ -76,20 +101,93 @@ afterAll(() => {
   if (existsSync(ENV_FILE)) unlinkSync(ENV_FILE);
 });
 
-describe('T4 good start-up', () => {
-  it('addresses match evm source; a missing tier is refused; id text forms as observed', async () => {
-    server = await startServer(XPUB);
-    expectPlain(await server.get('alpha', '/api/alpha'), 200, { payTo: expectedAt(0) });
-    expectPlain(await server.get('item', '/api/item/5'), 200, { payTo: expectedAt(1005) });
-    expectPlain(await server.get('tiered', '/api/tiered', { 'x-demo-tier': 'pro' }), 200, { payTo: expectedAt(4) });
-    expectPlain(await server.get('tiered', '/api/tiered', { 'x-demo-tier': 'basic' }), 200, { payTo: expectedAt(4) });
-    expectPlain(await server.get('tiered', '/api/tiered'), 503, { refused: codeFor({ route: '/api/tiered' }) });
+describe('T4 and T13 good start-up (one server start for both)', () => {
+  let good;
+  beforeAll(async () => {
+    good = await startServer(XPUB);
+  });
+  afterAll(async () => {
+    if (good) stops.push(await good.stop());
+  });
+
+  it('T4 addresses match evm source; a missing tier is refused; id text forms as observed', async () => {
+    expectRequired(await good.get('alpha', '/api/alpha'), expectedAt(0));
+    expectPlain(await good.get('item', '/api/item/5'), 200, { payTo: expectedAt(1005) });
+    expectPlain(await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'pro' }), 200, { payTo: expectedAt(4) });
+    expectPlain(await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'basic' }), 200, { payTo: expectedAt(4) });
+    expectPlain(await good.get('tiered', '/api/tiered'), 503, { refused: codeFor({ route: '/api/tiered' }) });
     // Observed behaviour, not a claim that it is right: "05" is accepted as the same item as "5".
-    expectPlain(await server.get('item', '/api/item/05'), 200, { payTo: expectedAt(1005) });
+    expectPlain(await good.get('item', '/api/item/05'), 200, { payTo: expectedAt(1005) });
     for (const text of ['1e3', '0x10', ' 5', '5.0', '+5', '5abc', '1'.repeat(40)]) {
       const code = codeFor({ route: '/api/item/[id]', id: text });
-      expectPlain(await server.get('item', `/api/item/${encodeURIComponent(text)}`), 503, { refused: code });
+      expectPlain(await good.get('item', `/api/item/${encodeURIComponent(text)}`), 503, { refused: code });
     }
+  });
+
+  it('T13 alpha reply: a 402 whose header and body decode to one exact Base Sepolia USDC entry and nothing else', async () => {
+    // Shows only that @x402/core 2.31.0's decoder and schema and our own inspector accept this reply,
+    // not what any buyer accepts. extra is what @x402/evm 2.31.0 declares; the token contract is not
+    // checked. The origin is the configured one (DEMO_ORIGIN); nothing here shows what Next.js reports
+    // for request.url under other settings.
+    const r = await good.get('alpha', '/api/alpha');
+    expect(r.status).toBe(402);
+    const header = r.headers['payment-required'];
+    expect(typeof header).toBe('string');
+
+    const d = decodePaymentRequiredHeader(header);
+    expect(parsePaymentRequired(d).success).toBe(true);
+
+    const o = inspectPaymentRequired(createRunContext(), 'PAYMENT-REQUIRED', header);
+    expect(o.decoded).toBe(true);
+    expect(o.acceptsOverCap).toBe(0);
+    expect(o.errorLength).toBe(null);
+    expect(o.dropped).toBe(0);
+    const terms = {
+      scheme: 'exact',
+      network: BASE_SEPOLIA,
+      asset: USDC,
+      amount: ALPHA_PRICE,
+      payTo: expectedAt(0),
+      maxTimeoutSeconds: 300,
+    };
+    expect(o.accepts).toEqual([terms]);
+    expect(o.resource).toEqual({ origin: ORIGIN, path: '/api/alpha', queryNames: [], dropped: 0 });
+
+    expect(d.x402Version).toBe(2);
+    expect(d.resource).toEqual({ url: `${ORIGIN}/api/alpha` });
+    expect(d.accepts).toEqual([{ ...terms, extra: { name: 'USDC', version: '2' } }]);
+
+    // The body is the same object and nothing more: no content from the route.
+    expect(r.body).toEqual(d);
+    expect(Object.keys(r.body).sort()).toEqual(['accepts', 'resource', 'x402Version']);
+
+    // The only addresses anywhere are the asset and payTo of that one entry.
+    const text = JSON.stringify(r.body);
+    expect((text.match(/0x[0-9a-fA-F]{40}/g) ?? []).sort()).toEqual([USDC, expectedAt(0)].sort());
+    const elsewhere = Object.entries(r.headers).filter(
+      ([k, v]) => k !== 'payment-required' && /0x[0-9a-fA-F]{40}/.test(v),
+    );
+    expect(elsewhere.length).toBe(0);
+
+    // Never key material or payment-signing fields.
+    const all = [header, text].join('\n');
+    expect(shows(all, TEST_XPUB)).toBe(false);
+    expect(shows(all, TEST_XPRV)).toBe(false);
+    expect(/(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])/.test(all)).toBe(false);
+    const keys = keysOf(d).map((k) => k.toLowerCase());
+    for (const k of ['signature', 'nonce', 'authorization', 'payload', 'xpub', 'xprv', 'key']) {
+      expect(keys.includes(k)).toBe(false);
+    }
+  });
+
+  it('T13 with a query string: resource.url carries no query', async () => {
+    // Shows only that the request's query does not reach resource.url: the route builds the URL from
+    // DEMO_ORIGIN and its own path. It says nothing about how buyers or servers treat query strings.
+    const r = await good.get('alpha', '/api/alpha?a=1');
+    expect(r.status).toBe(402);
+    const d = decodePaymentRequiredHeader(r.headers['payment-required']);
+    expect(d.resource).toEqual({ url: `${ORIGIN}/api/alpha` });
+    expect(r.body).toEqual(d);
   });
 });
 
@@ -119,7 +217,7 @@ describe('T6 key material in a NEXT_PUBLIC_ variable', () => {
 describe('T7 no start-up check: the fallback runs the checks', () => {
   it('right addresses; out-of-range ids and an unknown tier are refused', async () => {
     server = await startServer({ ...XPUB, DEMO_SKIP_REGISTER: '1' });
-    expectPlain(await server.get('alpha', '/api/alpha'), 200, { payTo: expectedAt(0) });
+    expectRequired(await server.get('alpha', '/api/alpha'), expectedAt(0));
     expectPlain(await server.get('item', '/api/item/5'), 200, { payTo: expectedAt(1005) });
     for (const id of ['0', '10000']) {
       const code = codeFor({ route: '/api/item/[id]', id });
