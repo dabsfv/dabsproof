@@ -8,4 +8,5 @@ export default defineConfig({
   sourcemap: true,
   dts: false,
   clean: false,
+  noExternal: ['@scure/bip32', '@scure/base'],
 });
