@@ -27,6 +27,23 @@
       "dependsOn": [
         "build"
       ]
+    },
+    "@dabsproof/demo-seller#build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**"
+      ],
+      "passThroughEnv": [
+        "NEXT_TELEMETRY_DISABLED"
+      ]
+    },
+    "@dabsproof/demo-seller#test": {
+      "dependsOn": [
+        "build"
+      ]
     }
   }
 }

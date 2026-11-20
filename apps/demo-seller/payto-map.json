@@ -1,0 +1,35 @@
+{
+  "manifestVersion": 1,
+  "routes": [
+    {
+      "route": "/api/alpha",
+      "price": "1000",
+      "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "network": "eip155:84532",
+      "index": 0
+    },
+    {
+      "route": "/api/item/[id]",
+      "price": "1000",
+      "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "network": "eip155:84532",
+      "perResource": { "baseIndex": 1000, "firstId": 1, "lastId": 9999 }
+    },
+    {
+      "route": "/api/tiered",
+      "tier": "basic",
+      "price": "1000",
+      "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "network": "eip155:84532",
+      "index": 4
+    },
+    {
+      "route": "/api/tiered",
+      "tier": "pro",
+      "price": "2000",
+      "asset": "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+      "network": "eip155:84532",
+      "index": 4
+    }
+  ]
+}
