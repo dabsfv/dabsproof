@@ -3,7 +3,9 @@
 // real client's reply schemas accept. Its paths and shapes copy what the installed @x402/core
 // 2.31.0 client calls (POST /verify, POST /settle, GET /supported), as read from that package's
 // types; nothing more is claimed. It records counts and shapes only: never a body, never any part
-// of a payment, never a header value, never a reply. Nothing is logged or printed.
+// of a payment, never a header value, never a reply. Nothing is logged or printed. The mode can be
+// changed while it runs (setMode); a change applies to later requests only, and the counts and the
+// log are never reset.
 import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo, Socket } from 'node:net';
@@ -27,6 +29,7 @@ export type StandInCode =
 export interface StandInOptions {
   /** Must be exactly '127.0.0.1'. */
   host: unknown;
+  /** The starting mode; setMode() can change it while running, for later requests only. */
   mode: StandInMode;
   /** Timeout mode only: how long a request is held unanswered before its connection is closed. At most MAX_HOLD_MS. */
   holdMs?: number;
@@ -54,8 +57,13 @@ export interface StandInLog {
 export interface StandIn {
   origin: string;
   port: number;
-  /** A copy of what was received: counts and shapes only. */
+  /** A copy of what was received: counts and shapes only. Cumulative; never reset by setMode. */
   seen: () => StandInLog;
+  /**
+   * Changes how later requests are answered. A request already held in timeout mode keeps its own
+   * hold until that ends or stop() is called. Setting the same mode again is fine.
+   */
+  setMode: (mode: unknown) => { ok: true } | { ok: false; code: 'mode-unknown' | 'stopped' };
   /** Clears every timer and closes every connection at once, then stops listening. */
   stop: () => Promise<void>;
 }
@@ -149,7 +157,8 @@ export async function startStandIn(
     typeof requested === 'number' && Number.isInteger(requested)
       ? Math.min(Math.max(requested, 1), MAX_REQUESTS)
       : MAX_REQUESTS;
-  const mode = options.mode;
+  // Read when each request has finished arriving, so setMode() affects later requests only.
+  let mode: StandInMode = options.mode;
   const fakeTransaction = `stand-in-${randomBytes(4).toString('hex')}`;
 
   const log: StandInLog = { counts: { verify: 0, settle: 0, supported: 0, other: 0, refused: 0 }, requests: [] };
@@ -227,6 +236,12 @@ export async function startStandIn(
     origin: `http://${STANDIN_HOST}:${port}`,
     port,
     seen: () => JSON.parse(JSON.stringify(log)) as StandInLog,
+    setMode: (next) => {
+      if (stopped) return { ok: false, code: 'stopped' };
+      if (!(MODES as readonly unknown[]).includes(next)) return { ok: false, code: 'mode-unknown' };
+      mode = next as StandInMode;
+      return { ok: true };
+    },
     stop: () => {
       if (stopped) return stopped;
       for (const t of timers) clearTimeout(t);

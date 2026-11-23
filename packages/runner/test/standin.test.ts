@@ -159,4 +159,62 @@ describe('the stand-in facilitator (a fake for tests only)', () => {
     expect(await at({ mode: 'timeout', holdMs: -1 })).toEqual({ ok: false, code: 'hold-invalid' });
     expect(await at({ mode: 'timeout', holdMs: 1.5 })).toEqual({ ok: false, code: 'hold-invalid' });
   });
+  it('setMode from always-valid to error changes later replies to 500, and the counts keep growing', async () => {
+    const s = await start({ mode: 'always-valid' });
+    expect((await post(s, '/verify', request)).status).toBe(200);
+    expect(s.setMode('error')).toEqual({ ok: true });
+    expect(s.setMode('error')).toEqual({ ok: true });
+    const v = await post(s, '/verify', request);
+    expect(v.status).toBe(500);
+    expect(await v.json()).toEqual({ error: 'stand-in-error' });
+    expect((await fetch(`${s.origin}/supported`)).status).toBe(500);
+    expect(s.seen().counts).toMatchObject({ verify: 2, supported: 1 });
+    expect(s.seen().requests.length).toBe(3);
+  });
+  it('setMode to timeout and back works; a request already held stays held until stop() releases it at once', async () => {
+    const s = await start({ mode: 'always-valid', holdMs: 1000 });
+    expect(s.setMode('timeout')).toEqual({ ok: true });
+    const cut = await fetch(`${s.origin}/verify`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
+      signal: AbortSignal.timeout(200),
+    }).then(
+      () => 'answered',
+      () => 'cut off',
+    );
+    expect(cut).toBe('cut off');
+    expect(s.setMode('always-valid')).toEqual({ ok: true });
+    expect((await fetch(`${s.origin}/supported`)).status).toBe(200);
+    expect(s.setMode('timeout')).toEqual({ ok: true });
+    let settled = false;
+    const held = post(s, '/settle', request).then(
+      () => 'answered',
+      () => 'closed',
+    );
+    held.then(() => {
+      settled = true;
+    });
+    for (let i = 0; i < 50 && s.seen().counts.settle === 0; i++) await new Promise((r) => setTimeout(r, 20));
+    expect(s.seen().counts.settle).toBe(1);
+    // Switching back does not answer the request already held.
+    expect(s.setMode('always-valid')).toEqual({ ok: true });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(settled).toBe(false);
+    const t0 = Date.now();
+    await s.stop();
+    expect(await held).toBe('closed');
+    expect(Date.now() - t0 < 500).toBe(true);
+  });
+  it('an unknown mode gives mode-unknown and the mode does not change', async () => {
+    const s = await start({ mode: 'error' });
+    for (const m of ['approve-everything', undefined, 7])
+      expect(s.setMode(m)).toEqual({ ok: false, code: 'mode-unknown' });
+    expect((await post(s, '/verify', request)).status).toBe(500);
+  });
+  it('setMode after stop gives stopped', async () => {
+    const s = await start({ mode: 'always-valid' });
+    await s.stop();
+    expect(s.setMode('error')).toEqual({ ok: false, code: 'stopped' });
+  });
 });
