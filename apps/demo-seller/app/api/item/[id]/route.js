@@ -11,9 +11,9 @@ const ROUTE = '/api/item/[id]';
 
 // Every request currently gets the 402 reply. A request carrying a payment header is not looked at:
 // nothing here verifies or settles a payment, and T14 checks the reply is unchanged when two such
-// header names are sent. Whether a buyer reads the body, or accepts this reply at
-// all, is not verified. The id is passed as Next.js gives it (text) and the fix kit's manager decides
-// first: it accepts only one to ten digits within the mapping's range, and its refusals stay 503.
+// header names are sent. Whether a buyer reads the body, or accepts this reply at all, is not
+// verified. The id is passed as Next.js gives it (text) and the fix kit's manager decides first: it
+// accepts only one to ten digits within the mapping's range, and its refusals stay 503.
 // resource.url is the configured origin (DEMO_ORIGIN) plus /api/item/ and the id text exactly as
 // accepted, so "05" gives /api/item/05. The id check below repeats the manager's and is a backstop,
 // as is price-not-found; no test reaches either.

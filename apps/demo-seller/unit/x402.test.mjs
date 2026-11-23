@@ -1,5 +1,6 @@
-// Unit tests for lib/x402.js. No server is started. @x402/core is imported here only, never by app
-// code. Expected payTo values come from evm's source, and prices from the app's own mapping.
+// Unit tests for lib/x402.js. No server is started. @x402/core is imported by tests only (this file
+// and e2e/server.test.mjs), never by app code. Expected payTo values come from evm's source, and
+// prices from the app's own mapping.
 import { readFileSync } from 'node:fs';
 import { decodePaymentRequiredHeader, encodePaymentRequiredHeader } from '@x402/core/http';
 import { parsePaymentRequired, validatePaymentRequired } from '@x402/core/schemas';

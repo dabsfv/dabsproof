@@ -1,4 +1,4 @@
-// The unpaid x402 version 2 "payment required" response for one mapping entry. Pure: no imports, no
+// The x402 version 2 "payment required" response for one mapping entry. Pure: no imports, no
 // Node built-ins, no environment, no logging. It does not verify or settle a payment, calls no
 // facilitator, and never reads or echoes a payment header.
 //
@@ -29,7 +29,8 @@ export function toBase64Ascii(text) {
 
 /**
  * entry: the mapping's route or tier entry ({ scheme?, network, asset, price }); payTo: from the fix
- * kit; url: the request URL. Returns { ok: true, status, headers, body } or { ok: false, code }.
+ * kit; url: the URL to name in resource.url (the routes pass DEMO_ORIGIN plus their own path).
+ * Returns { ok: true, status, headers, body } or { ok: false, code }.
  */
 export function paymentRequired({ entry, payTo, url }) {
   if (!entry || (entry.scheme ?? 'exact') !== 'exact') return { ok: false, code: 'unsupported-scheme' };

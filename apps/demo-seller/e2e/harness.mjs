@@ -17,7 +17,7 @@ const TEMP = realpathSync(tmpdir());
 /** The line Next.js prints when `next start` is ready. */
 export const READY_TEXT = 'Ready in';
 
-/** Everything printed by servers and builds, and every response body: for the canary test only. */
+/** Everything printed by servers and builds, every response body, and each PAYMENT-REQUIRED header with its decoded text: for the canary test only. */
 export const captured = [];
 /** Requests per route for each server start, in order: counts only. */
 export const requestCounts = [];

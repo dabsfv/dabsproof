@@ -1,6 +1,7 @@
-// T4 to T8 and T10 to T12: `next start` on 127.0.0.1:4319. Every expected address comes from evm's
+// T4 to T8 and T10 to T14: `next start` on 127.0.0.1:4319. Every expected address comes from evm's
 // source, and every expected code and log line from the fix kit's source, run in this process.
-// Captured output and bodies are only ever checked as true or false; none is printed.
+// T11 checks captured output and bodies only as true or false and prints none of them; a failing
+// comparison in another test prints the reply it compares.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -101,7 +102,7 @@ afterAll(() => {
   if (existsSync(ENV_FILE)) unlinkSync(ENV_FILE);
 });
 
-describe('T4 and T13 good start-up (one server start for both)', () => {
+describe('T4, T13 and T14 good start-up (one server start for all three)', () => {
   let good;
   /** T4's replies without a payment header, compared by T14. */
   const noHeader = {};
