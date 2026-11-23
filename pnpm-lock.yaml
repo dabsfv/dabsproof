@@ -111,9 +111,15 @@ importers:
 
   packages/runner:
     dependencies:
+      '@dabsproof/brand':
+        specifier: workspace:*
+        version: link:../brand
       '@dabsproof/core':
         specifier: workspace:*
         version: link:../core
+      '@dabsproof/evm':
+        specifier: workspace:*
+        version: link:../evm
       '@dabsproof/registry':
         specifier: workspace:*
         version: link:../registry

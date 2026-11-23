@@ -39,5 +39,15 @@ describe('isolation', () => {
     expect(texts.filter((t) => IMPORTS_RUNNER.test(t)).length).toBe(0);
     expect(outside.filter((f) => basename(f) === 'standin.ts').length).toBe(0);
     expect(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).private).toBe(true);
+    // The wallet stays inside the runner: the CLI does not import it, no tracked file elsewhere names its
+    // files, its source makes no network call, and its tests never read the real home folder.
+    expect(files.filter((f) => /wallet(\.js|-cli)/.test(readFileSync(f, 'utf8'))).length).toBe(0);
+    expect(texts.filter((t) => t.includes('wallet.ts') || t.includes('wallet-cli')).length).toBe(0);
+    const NETWORK_USE = /\bfetch\s*\(|['"`](?:node:)?(?:http|https|net|dns)['"`]/;
+    for (const name of ['wallet.ts', 'wallet-cli.ts']) {
+      expect(NETWORK_USE.test(readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8'))).toBe(false);
+    }
+    const walletTest = readFileSync(new URL('./wallet.test.ts', import.meta.url), 'utf8');
+    expect(walletTest.includes('process.env.HOME') || walletTest.includes('homedir(')).toBe(false);
   });
 });

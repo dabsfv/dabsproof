@@ -18,7 +18,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@dabsproof/brand": "workspace:*",
     "@dabsproof/core": "workspace:*",
+    "@dabsproof/evm": "workspace:*",
     "@dabsproof/registry": "workspace:*"
   }
 }
