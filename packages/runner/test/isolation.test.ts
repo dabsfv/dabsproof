@@ -1,6 +1,7 @@
 // The CLI promises it sends nothing anywhere, so it must not depend on or import the runner.
+import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -25,5 +26,18 @@ describe('isolation', () => {
       .filter((f) => statSync(f).isFile());
     expect(ownFiles.length > 0).toBe(true);
     expect(ownFiles.filter((f) => readFileSync(f, 'utf8').includes('apps/')).length).toBe(0);
+    // The stand-in facilitator stays inside the runner: no tracked file elsewhere calls it, imports the
+    // runner, or is named standin.ts, and the runner stays private (never published).
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const outside = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+      .split('\0')
+      .filter((f) => f !== '' && !f.startsWith('packages/runner/'));
+    expect(outside.length > 0).toBe(true);
+    const IMPORTS_RUNNER = /(?:from|import\()\s*['"`][^'"`]*(?:@dabsproof\/runner|packages\/runner\/)/;
+    const texts = outside.map((f) => readFileSync(join(root, f), 'utf8'));
+    expect(texts.filter((t) => t.includes('startStandIn')).length).toBe(0);
+    expect(texts.filter((t) => IMPORTS_RUNNER.test(t)).length).toBe(0);
+    expect(outside.filter((f) => basename(f) === 'standin.ts').length).toBe(0);
+    expect(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).private).toBe(true);
   });
 });
