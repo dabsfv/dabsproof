@@ -1,8 +1,5 @@
 const CODE = /^[a-z][a-z-]{2,40}$/;
 
-/** 200 with only the address. */
-export const paid = (address) => Response.json({ payTo: address });
-
 /** 503 with only one of our own codes (from lib/x402.js, lib/origin.js, lib/entry.js or a route). A code that does not match CODE becomes 'unexpected'. */
 export const refusedWith = (code) =>
   Response.json({ refused: typeof code === 'string' && CODE.test(code) ? code : 'unexpected' }, { status: 503 });
