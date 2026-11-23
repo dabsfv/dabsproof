@@ -18,5 +18,12 @@ describe('isolation', () => {
       .filter((f) => statSync(f).isFile());
     expect(files.length > 0).toBe(true);
     expect(files.filter((f) => readFileSync(f, 'utf8').includes(NAME)).length).toBe(0);
+    // The runner's own source never reaches into the apps; only its tests may use the demo seller.
+    const own = fileURLToPath(new URL('../src/', import.meta.url));
+    const ownFiles = readdirSync(own, { recursive: true })
+      .map((f) => join(own, String(f)))
+      .filter((f) => statSync(f).isFile());
+    expect(ownFiles.length > 0).toBe(true);
+    expect(ownFiles.filter((f) => readFileSync(f, 'utf8').includes('apps/')).length).toBe(0);
   });
 });

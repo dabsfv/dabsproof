@@ -44,6 +44,12 @@
       "dependsOn": [
         "build"
       ]
+    },
+    "@dabsproof/runner#test": {
+      "dependsOn": [
+        "^build",
+        "@dabsproof/demo-seller#test"
+      ]
     }
   }
 }
