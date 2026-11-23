@@ -45,7 +45,7 @@ describe('the stand-in facilitator (a fake for tests only)', () => {
     expect(await v.json()).toEqual({ isValid: true });
     const st = await post(s, '/settle', request);
     expect(st.status).toBe(200);
-    const settled = await st.json();
+    const settled = (await st.json()) as { success?: unknown; network?: unknown; transaction?: unknown };
     expect(settled.success).toBe(true);
     expect(settled.network).toBe('eip155:84532');
     expect(typeof settled.transaction === 'string' && settled.transaction.startsWith('stand-in-')).toBe(true);
