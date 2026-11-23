@@ -9,8 +9,9 @@ export const dynamic = 'force-dynamic';
 
 const ROUTE = '/api/tiered';
 
-// Every request currently gets the 402 reply. A request carrying a payment header is not looked at;
-// what to do with one is undecided (S6). Whether a buyer reads the body, or accepts this reply at
+// Every request currently gets the 402 reply. A request carrying a payment header is not looked at:
+// nothing here verifies or settles a payment, and T14 checks the reply is unchanged when two such
+// header names are sent. Whether a buyer reads the body, or accepts this reply at
 // all, is not verified. The tier comes from the x-demo-tier header; the fix kit's manager decides
 // first, so a missing or unknown tier stays 503 tier-not-given. The price is the one for that tier.
 // resource.url is the configured origin (DEMO_ORIGIN) plus this route's path; the tier is not in it.

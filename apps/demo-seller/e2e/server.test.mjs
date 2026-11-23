@@ -2,6 +2,7 @@
 // source, and every expected code and log line from the fix kit's source, run in this process.
 // Captured output and bodies are only ever checked as true or false; none is printed.
 import { execFileSync, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { decodePaymentRequiredHeader } from '@x402/core/http';
@@ -102,6 +103,8 @@ afterAll(() => {
 
 describe('T4 and T13 good start-up (one server start for both)', () => {
   let good;
+  /** T4's replies without a payment header, compared by T14. */
+  const noHeader = {};
   beforeAll(async () => {
     good = await startServer(XPUB);
   });
@@ -110,20 +113,26 @@ describe('T4 and T13 good start-up (one server start for both)', () => {
   });
 
   it('T4 addresses match evm source; a missing tier is refused; id text forms as observed', async () => {
-    expectRequired(await good.get('alpha', '/api/alpha'), {
+    noHeader.alpha = await good.get('alpha', '/api/alpha');
+    expectRequired(noHeader.alpha, {
       payTo: expectedAt(0),
       path: '/api/alpha',
       amount: ALPHA_PRICE,
     });
-    expectRequired(await good.get('item', '/api/item/5'), {
+    noHeader.item = await good.get('item', '/api/item/5');
+    expectRequired(noHeader.item, {
       payTo: expectedAt(1005),
       path: '/api/item/5',
       amount: ITEM_PRICE,
     });
     // The two tiers must have different prices, or this test could not tell them apart.
     expect(priceOf('/api/tiered', 'pro') === priceOf('/api/tiered', 'basic')).toBe(false);
-    const pro = await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'pro' });
-    expectRequired(pro, { payTo: expectedAt(4), path: '/api/tiered', amount: priceOf('/api/tiered', 'pro') });
+    noHeader.pro = await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'pro' });
+    expectRequired(noHeader.pro, {
+      payTo: expectedAt(4),
+      path: '/api/tiered',
+      amount: priceOf('/api/tiered', 'pro'),
+    });
     const basic = await good.get('tiered', '/api/tiered', { 'x-demo-tier': 'basic' });
     expectRequired(basic, { payTo: expectedAt(4), path: '/api/tiered', amount: priceOf('/api/tiered', 'basic') });
     expectPlain(await good.get('tiered', '/api/tiered'), 503, { refused: codeFor({ route: '/api/tiered' }) });
@@ -204,6 +213,37 @@ describe('T4 and T13 good start-up (one server start for both)', () => {
     const d = decodePaymentRequiredHeader(r.headers['payment-required']);
     expect(d.resource).toEqual({ url: `${ORIGIN}/api/alpha` });
     expect(r.body).toEqual(d);
+  });
+
+  it('T14 a request carrying fake payment headers gets the same reply as one without', async () => {
+    // The header names PAYMENT-SIGNATURE and X-PAYMENT come from earlier reads and are not confirmed
+    // from code here. This shows only that our routes do not change their reply when they are present.
+    expect(Object.keys(noHeader).sort()).toEqual(['alpha', 'item', 'pro']);
+    // 48 random bytes as 64 base64 characters, made at run time. Never printed or logged. Added to
+    // fakes so that T11 also checks every captured output and body for it.
+    const fake = randomBytes(48).toString('base64');
+    fakes.payment = fake;
+    const pay = { 'PAYMENT-SIGNATURE': fake, 'X-PAYMENT': fake };
+    const withHeader = {
+      alpha: await good.get('alpha', '/api/alpha', pay),
+      item: await good.get('item', '/api/item/5', pay),
+      pro: await good.get('tiered', '/api/tiered', { ...pay, 'x-demo-tier': 'pro' }),
+    };
+    for (const k of ['alpha', 'item', 'pro']) {
+      const a = withHeader[k];
+      const b = noHeader[k];
+      // First checks that cannot print the fake; the shows checks next; only then the comparisons,
+      // whose failure output prints both sides.
+      expect(a.status).toBe(402);
+      expect(typeof a.headers['payment-required']).toBe('string');
+      const all = [...Object.values(a.headers), JSON.stringify(a.body), atob(a.headers['payment-required'])].join('\n');
+      expect(shows(all, fake)).toBe(false);
+      expect(shows(all, btoa(fake))).toBe(false);
+      expect(a.status).toBe(b.status);
+      expect(a.headers['payment-required']).toBe(b.headers['payment-required']);
+      expect(a.body).toEqual(b.body);
+      expect(Object.keys(a.headers).sort()).toEqual(Object.keys(b.headers).sort());
+    }
   });
 });
 
