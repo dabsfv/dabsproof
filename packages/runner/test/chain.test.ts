@@ -1,6 +1,7 @@
-// Unit tests for the local chain's option checks and argument list. Nothing is started and nothing is
-// sent: the binary path is only a string, and the fork URL is a made-up name on a .test domain, built
-// at run time. These tests say nothing about anvil's own behaviour.
+// Unit tests for the local chain's option checks and argument list. Nothing is started, nothing is
+// sent and no file is touched: the binary path and every state path are only strings built at run
+// time, and the fork URL is a made-up name on a .test domain. The state-path checks look at text only;
+// where a path really leads could not be verified here. These tests say nothing about anvil itself.
 import { randomBytes, randomInt } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
@@ -18,6 +19,12 @@ const BINARY = `/fake-${tag()}/bin/anvil`;
 const FORK = `https://rpc-${tag()}.example.test/`;
 const BLOCK = randomInt(1, 1_000_000_000);
 const PORT = randomInt(20_000, 60_000);
+// Made-up folders: a repo and a state folder side by side, never created.
+const ROOT = `/fake-${tag()}`;
+const REPO = `${ROOT}/repo`;
+const STATE = `${ROOT}/state`;
+const DUMP = `${STATE}/base-sepolia-${BLOCK}.anvil-state.json`;
+const LOAD = `${STATE}/saved-${tag()}.json`;
 const base = (o: Partial<ChainOptionsInput> = {}): ChainOptionsInput => ({
   host: '127.0.0.1',
   port: PORT,
@@ -27,6 +34,12 @@ const base = (o: Partial<ChainOptionsInput> = {}): ChainOptionsInput => ({
 });
 const fork = (o: Partial<ChainOptionsInput> = {}) =>
   base({ forkUrl: FORK, forkBlock: BLOCK, allowedForkUrls: [FORK], ...o });
+/** The one fork run that writes its state, with every state input given. */
+const dumpRun = (o: Partial<ChainOptionsInput> = {}) =>
+  fork({ stateDir: STATE, repoRoot: REPO, dumpStatePath: DUMP, ...o });
+/** An offline start from a saved state, with every state input given. */
+const loadRun = (o: Partial<ChainOptionsInput> = {}) =>
+  base({ stateDir: STATE, repoRoot: REPO, loadStatePath: LOAD, ...o });
 const reasonOf = (input: ChainOptionsInput): ChainReason | 'ok' => {
   const r = validateChainOptions(input);
   return r.ok ? 'ok' : r.reason;
@@ -36,7 +49,10 @@ const optionsOf = (input: ChainOptionsInput): ChainOptions => {
   if (!r.ok) throw new Error(r.reason);
   return r.options;
 };
-const FORBIDDEN = ['--state', '--dump-state', '--load-state', '--fund-accounts', '--auto-impersonate'];
+const BASE_ARGS = () => ['--host', '127.0.0.1', '--port', String(PORT), '--chain-id', '84532', '--accounts', '0'];
+const FORK_ARGS = () => ['--fork-url', FORK, '--fork-block-number', String(BLOCK), '--no-fork-node-info'];
+/** Never produced, whatever the input. */
+const NEVER = ['--state', '--fund-accounts', '--auto-impersonate'];
 
 describe('the local chain options (nothing is started)', () => {
   it('the chain id comes from the Base Sepolia network name', () => {
@@ -44,7 +60,15 @@ describe('the local chain options (nothing is started)', () => {
   });
   it('accepts the no-fork options and returns them frozen', () => {
     const o = optionsOf(base());
-    expect(o).toEqual({ host: '127.0.0.1', port: PORT, chainId: ANVIL_CHAIN_ID, binaryPath: BINARY, fork: null });
+    expect(o).toEqual({
+      host: '127.0.0.1',
+      port: PORT,
+      chainId: ANVIL_CHAIN_ID,
+      binaryPath: BINARY,
+      fork: null,
+      dumpStatePath: null,
+      loadStatePath: null,
+    });
     expect(Object.isFrozen(o)).toBe(true);
   });
   it('refuses any host but the literal 127.0.0.1', () => {
@@ -135,50 +159,182 @@ describe('the local chain options (nothing is started)', () => {
         base({ forkUrl: FORK, forkBlock: BLOCK }),
         fork({ forkBlock: 0 }),
         base({ forkBlock: BLOCK }),
+        dumpRun({ loadStatePath: LOAD }),
+        dumpRun({ stateDir: 'state' }),
+        dumpRun({ repoRoot: 'repo' }),
+        dumpRun({ stateDir: undefined }),
+        dumpRun({ repoRoot: undefined }),
+        dumpRun({ stateDir: `${REPO}/state`, dumpStatePath: `${REPO}/state/x.json` }),
+        dumpRun({ dumpStatePath: 'x.json' }),
+        loadRun({ loadStatePath: 'x.json' }),
+        dumpRun({ dumpStatePath: `${STATE}/.config/dabsproof/x.json` }),
+        dumpRun({ dumpStatePath: `${ROOT}/other/x.json` }),
+        dumpRun({ dumpStatePath: `${STATE}/x.txt` }),
+        dumpRun({ dumpStatePath: `${STATE}/.env.json` }),
+        base({ stateDir: STATE, repoRoot: REPO, dumpStatePath: DUMP }),
+        loadRun({ forkUrl: FORK, forkBlock: BLOCK, allowedForkUrls: [FORK] }),
       ].map(reasonOf),
     );
     expect([...seen].sort()).toEqual([...CHAIN_REASONS].sort());
   });
 });
 
+describe('the saved chain state (paths are text only; nothing is read or written)', () => {
+  it('accepts the one fork run writing its state, and an offline start from a saved state', () => {
+    const d = optionsOf(dumpRun());
+    expect(d.dumpStatePath).toBe(DUMP);
+    expect(d.loadStatePath).toBe(null);
+    const l = optionsOf(loadRun());
+    expect(l.loadStatePath).toBe(LOAD);
+    expect(l.dumpStatePath).toBe(null);
+    expect(l.fork).toBe(null);
+  });
+  it('only undefined means not given: null for each state input is refused with its own reason', () => {
+    expect(reasonOf(dumpRun({ stateDir: null }))).toBe('state-dir-invalid');
+    expect(reasonOf(dumpRun({ repoRoot: null }))).toBe('repo-root-invalid');
+    expect(reasonOf(fork({ stateDir: STATE, repoRoot: REPO, dumpStatePath: null }))).toBe('dump-state-path-invalid');
+    expect(reasonOf(base({ stateDir: STATE, repoRoot: REPO, loadStatePath: null }))).toBe('load-state-path-invalid');
+    // A state folder and repo folder given alone are still checked.
+    expect(reasonOf(base({ stateDir: null }))).toBe('state-dir-invalid');
+    expect(reasonOf(base({ repoRoot: null }))).toBe('repo-root-invalid');
+    expect(reasonOf(base({ stateDir: STATE, repoRoot: REPO }))).toBe('ok');
+  });
+  it('the state folder and the repo folder must be plain absolute paths', () => {
+    for (const bad of [
+      'state',
+      './state',
+      `${ROOT}/a/../state`,
+      `${ROOT}/./state`,
+      `${ROOT}//state`,
+      `${STATE}/`,
+      '',
+      42,
+      '/',
+      `${ROOT}\\state`,
+    ]) {
+      expect(reasonOf(dumpRun({ stateDir: bad }))).toBe('state-dir-invalid');
+      expect(reasonOf(dumpRun({ repoRoot: bad }))).toBe('repo-root-invalid');
+    }
+  });
+  it('a state path needs both the state folder and the repo folder', () => {
+    expect(reasonOf(dumpRun({ stateDir: undefined }))).toBe('state-dir-missing');
+    expect(reasonOf(dumpRun({ repoRoot: undefined }))).toBe('repo-root-missing');
+    expect(reasonOf(loadRun({ stateDir: undefined }))).toBe('state-dir-missing');
+    expect(reasonOf(loadRun({ repoRoot: undefined }))).toBe('repo-root-missing');
+  });
+  it('the state folder must lie outside the repo folder: not the same, not inside it, not holding it', () => {
+    expect(reasonOf(dumpRun({ stateDir: REPO, dumpStatePath: `${REPO}/x.json` }))).toBe('state-dir-overlaps-repo');
+    expect(reasonOf(dumpRun({ stateDir: `${REPO}/state`, dumpStatePath: `${REPO}/state/x.json` }))).toBe(
+      'state-dir-overlaps-repo',
+    );
+    expect(reasonOf(dumpRun({ stateDir: ROOT, dumpStatePath: `${ROOT}/x.json` }))).toBe('state-dir-overlaps-repo');
+    // Compared ignoring case, since the disk may fold case (could not verify which it does).
+    expect(
+      reasonOf(
+        dumpRun({ stateDir: `${REPO.toUpperCase()}/state`, dumpStatePath: `${REPO.toUpperCase()}/state/x.json` }),
+      ),
+    ).toBe('state-dir-overlaps-repo');
+    // A sibling whose name starts with the repo's name is outside it.
+    expect(reasonOf(dumpRun({ stateDir: `${REPO}-state`, dumpStatePath: `${REPO}-state/x.json` }))).toBe('ok');
+  });
+  it('a state path must be a plain absolute path', () => {
+    for (const bad of [
+      'x.json',
+      './x.json',
+      `${STATE}/../x.json`,
+      `${STATE}/./x.json`,
+      `${STATE}//x.json`,
+      `${STATE}/x.json/`,
+      '',
+      42,
+    ]) {
+      expect(reasonOf(dumpRun({ dumpStatePath: bad }))).toBe('dump-state-path-invalid');
+      expect(reasonOf(loadRun({ loadStatePath: bad }))).toBe('load-state-path-invalid');
+    }
+  });
+  it('a state path must lie inside the state folder, and a sibling with the same prefix is outside', () => {
+    for (const p of [`${ROOT}/other/x.json`, `${STATE}-other/x.json`, `${STATE}.json`, `${REPO}/x.json`, STATE]) {
+      expect(reasonOf(dumpRun({ dumpStatePath: p }))).toBe('state-path-outside-state-dir');
+      expect(reasonOf(loadRun({ loadStatePath: p }))).toBe('state-path-outside-state-dir');
+    }
+  });
+  it('a state path must end in .json and its name must not start with .env', () => {
+    for (const p of [`${STATE}/x.txt`, `${STATE}/x.json.bak`, `${STATE}/.json`, `${STATE}/x`]) {
+      expect(reasonOf(dumpRun({ dumpStatePath: p }))).toBe('state-path-not-json');
+    }
+    for (const p of [`${STATE}/.env.json`, `${STATE}/.env-state.json`, `${STATE}/.ENV.json`]) {
+      expect(reasonOf(dumpRun({ dumpStatePath: p }))).toBe('state-path-env-name');
+      expect(reasonOf(loadRun({ loadStatePath: p }))).toBe('state-path-env-name');
+    }
+  });
+  it('a state path holding a .config segment followed by dabsproof is refused', () => {
+    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.config/dabsproof/x.json` }))).toBe(
+      'state-path-config-dabsproof',
+    );
+    const inConfig = `${ROOT}/home/.config/dabsproof`;
+    expect(reasonOf(dumpRun({ stateDir: inConfig, dumpStatePath: `${inConfig}/x.json` }))).toBe(
+      'state-path-config-dabsproof',
+    );
+    expect(reasonOf(loadRun({ stateDir: inConfig, loadStatePath: `${inConfig}/x.json` }))).toBe(
+      'state-path-config-dabsproof',
+    );
+    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.CONFIG/DabsProof/x.json` }))).toBe(
+      'state-path-config-dabsproof',
+    );
+    // The two segments must follow one another.
+    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.config/other/dabsproof.json` }))).toBe('ok');
+  });
+  it('writing state needs the fork run, loading state needs no fork, and both together are refused', () => {
+    expect(reasonOf(base({ stateDir: STATE, repoRoot: REPO, dumpStatePath: DUMP }))).toBe('dump-state-without-fork');
+    expect(reasonOf(loadRun({ forkUrl: FORK, forkBlock: BLOCK, allowedForkUrls: [FORK] }))).toBe(
+      'load-state-with-fork',
+    );
+    expect(reasonOf(dumpRun({ loadStatePath: LOAD }))).toBe('dump-and-load-state-together');
+    expect(reasonOf(loadRun({ dumpStatePath: DUMP }))).toBe('dump-and-load-state-together');
+  });
+  it('the checks see text only: a path through a link elsewhere is accepted as text (where it leads could not be verified here)', () => {
+    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/link-to-somewhere/x.json` }))).toBe('ok');
+  });
+});
+
 describe('the anvil argument list (returned only; nothing is started)', () => {
   it('no fork: host, port, chain id and no dev accounts, exactly', () => {
-    expect(buildAnvilArgs(optionsOf(base()))).toEqual([
-      '--host',
-      '127.0.0.1',
-      '--port',
-      String(PORT),
-      '--chain-id',
-      '84532',
-      '--accounts',
-      '0',
-    ]);
+    expect(buildAnvilArgs(optionsOf(base()))).toEqual(BASE_ARGS());
   });
-  it('a validated fork adds only the fork URL and the pinned block', () => {
-    expect(buildAnvilArgs(optionsOf(fork()))).toEqual([
-      '--host',
-      '127.0.0.1',
-      '--port',
-      String(PORT),
-      '--chain-id',
-      '84532',
-      '--accounts',
-      '0',
-      '--fork-url',
-      FORK,
-      '--fork-block-number',
-      String(BLOCK),
-    ]);
+  it('a validated fork adds the fork URL, the pinned block and --no-fork-node-info', () => {
+    expect(buildAnvilArgs(optionsOf(fork()))).toEqual([...BASE_ARGS(), ...FORK_ARGS()]);
   });
-  it('no forbidden flag can appear, even when the input carries extra fields', () => {
+  it('the one fork run adds --dump-state with its path, exactly', () => {
+    expect(buildAnvilArgs(optionsOf(dumpRun()))).toEqual([...BASE_ARGS(), ...FORK_ARGS(), '--dump-state', DUMP]);
+  });
+  it('an offline start adds --load-state with its path and no fork flag, exactly', () => {
+    expect(buildAnvilArgs(optionsOf(loadRun()))).toEqual([...BASE_ARGS(), '--load-state', LOAD]);
+  });
+  it('--state, --fund-accounts and --auto-impersonate never appear; --dump-state and --load-state only when validated', () => {
     const extra = { state: '/x', dumpState: '/x', loadState: '/x', fundAccounts: ['a:1'], autoImpersonate: true };
-    for (const input of [base(extra as Partial<ChainOptionsInput>), fork(extra as Partial<ChainOptionsInput>)]) {
-      const args = buildAnvilArgs(optionsOf(input));
-      const flags = args.filter((a) => a.startsWith('-'));
-      for (const f of FORBIDDEN) expect(flags.includes(f)).toBe(false);
+    const plain = [base(extra as Partial<ChainOptionsInput>), fork(extra as Partial<ChainOptionsInput>)];
+    const withState = [dumpRun(extra as Partial<ChainOptionsInput>), loadRun(extra as Partial<ChainOptionsInput>)];
+    for (const input of [...plain, ...withState]) {
+      const flags = buildAnvilArgs(optionsOf(input)).filter((a) => a.startsWith('-'));
+      for (const f of NEVER) expect(flags.includes(f)).toBe(false);
       for (const f of flags) {
-        expect(['--host', '--port', '--chain-id', '--accounts', '--fork-url', '--fork-block-number']).toContain(f);
+        expect([
+          '--host',
+          '--port',
+          '--chain-id',
+          '--accounts',
+          '--fork-url',
+          '--fork-block-number',
+          '--no-fork-node-info',
+          '--dump-state',
+          '--load-state',
+        ]).toContain(f);
       }
+    }
+    for (const input of plain) {
+      const flags = buildAnvilArgs(optionsOf(input));
+      expect(flags.includes('--dump-state')).toBe(false);
+      expect(flags.includes('--load-state')).toBe(false);
     }
   });
   it('options that did not come from validateChainOptions are refused', () => {
@@ -190,6 +346,8 @@ describe('the anvil argument list (returned only; nothing is started)', () => {
       chainId: 1,
       binaryPath: 'x',
       fork: null,
+      dumpStatePath: '/x/state.json',
+      loadStatePath: null,
     } as unknown as ChainOptions;
     expect(() => buildAnvilArgs(madeUp)).toThrow('chain-options-not-validated');
   });

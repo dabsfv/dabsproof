@@ -28,3 +28,4 @@ runs/
 .envrc
 *.keystore
 *keystore*.json
+*.anvil-state.json
