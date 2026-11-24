@@ -1,4 +1,4 @@
-// T4 to T8 and T10 to T14: `next start` on 127.0.0.1:4319. Every expected address comes from evm's
+// T4 to T8 and T10 to T15: `next start` on 127.0.0.1:4319. Every expected address comes from evm's
 // source, and every expected code and log line from the fix kit's source, run in this process.
 // T11 checks captured output and bodies only as true or false and prints none of them; a failing
 // comparison in another test prints the reply it compares.
@@ -41,6 +41,8 @@ const XPUB = { [XPUB_VARIABLE]: TEST_XPUB };
 const MAPPING = join(APP_DIR, 'payto-map.json');
 const ENV_FILE = join(APP_DIR, '.env.production.local');
 const fakes = { publicKey: fake64Hex(), serverKey: fakeServerKey() };
+/** Fakes T11 checks as whole values only (their fixed parts may match a normal reply in 8-character windows). */
+const verbatim = {};
 const git = (...args) => execFileSync('git', args, { cwd: APP_DIR, encoding: 'utf8' });
 const codeFor = (request) => managerRefusal(MAPPING, request)?.code;
 const ORIGIN = `http://${HOST}:${PORT}`;
@@ -76,6 +78,7 @@ const refusesAll = async (server, code) => {
   expectPlain(await server.get('alpha', '/api/alpha'), 503, { refused: code });
   expectPlain(await server.get('item', '/api/item/5'), 503, { refused: code });
   expectPlain(await server.get('tiered', '/api/tiered', { 'x-demo-tier': 'pro' }), 503, { refused: code });
+  expectPlain(await server.get('paid', '/api/paid'), 503, { refused: code });
 };
 /** Every line the fix kit's source logs for this case is in the server's output (true or false only). */
 const expectLines = async (server, lines) => {
@@ -102,7 +105,7 @@ afterAll(() => {
   if (existsSync(ENV_FILE)) unlinkSync(ENV_FILE);
 });
 
-describe('T4, T13 and T14 good start-up (one server start for all three)', () => {
+describe('T4, T13, T14 and T15 good start-up (one server start for all four)', () => {
   let good;
   /** T4's replies without a payment header, compared by T14. */
   const noHeader = {};
@@ -219,6 +222,8 @@ describe('T4, T13 and T14 good start-up (one server start for all three)', () =>
   it('T14 a request carrying fake payment headers gets the same reply as one without', async () => {
     // The header names PAYMENT-SIGNATURE and X-PAYMENT come from earlier reads and are not confirmed
     // from code here. This shows only that our routes do not change their reply when they are present.
+    // It covers alpha, item and tiered only; it does not cover /api/paid, which reads payment-signature
+    // (T15 here, and the runner's end-to-end tests).
     expect(Object.keys(noHeader).sort()).toEqual(['alpha', 'item', 'pro']);
     // 48 random bytes as 64 base64 characters, made at run time. Never printed or logged. Added to
     // fakes so that T11 also checks every captured output and body for it.
@@ -245,6 +250,42 @@ describe('T4, T13 and T14 good start-up (one server start for all three)', () =>
       expect(a.body).toEqual(b.body);
       expect(Object.keys(a.headers).sort()).toEqual(Object.keys(b.headers).sort());
     }
+  });
+
+  it('T15 /api/paid: no header gives the 402; a payment header with no facilitator set gives 503', async () => {
+    // This start has no DEMO_FACILITATOR_URL, so the paid path cannot run here; the runner's
+    // end-to-end tests drive it against the stand-in. The fake payment is base64 of a JSON text made
+    // at run time: a fixed prefix, a random signature, a fixed suffix. It is not a payment. Its fixed
+    // prefix encodes like the start of every PAYMENT-REQUIRED header, so only its random parts are
+    // checked in 8-character windows; the whole header is checked as one value. T11 checks all three.
+    const prefix = '{"x402Version":2,"payload":{"signature":"';
+    const signature = randomBytes(48).toString('base64');
+    const header = Buffer.from(`${prefix}${signature}"}}`).toString('base64');
+    // From the first base64 group lying wholly inside the signature; the last 8 characters (the
+    // closing text and any padding) are left out.
+    const randomPart = header.slice(Math.ceil(prefix.length / 3) * 4, header.length - 8);
+    fakes.paidSignature = signature;
+    fakes.paidRandomPart = randomPart;
+    verbatim.paidHeader = header;
+    const plainReply = await good.get('paid', '/api/paid');
+    expectRequired(plainReply, { payTo: expectedAt(2), path: '/api/paid', amount: priceOf('/api/paid') });
+    expect(randomPart.length >= 16).toBe(true);
+    expect(shows(plainReply.headers['payment-required'], randomPart)).toBe(false);
+    const withPayment = await good.get('paid', '/api/paid', { 'payment-signature': header });
+    // Checks that cannot print the fake come first; only then the comparison.
+    const all = [
+      ...Object.values(plainReply.headers),
+      JSON.stringify(plainReply.body),
+      ...Object.values(withPayment.headers),
+      JSON.stringify(withPayment.body),
+    ].join('\n');
+    expect(shows(all, signature)).toBe(false);
+    expect(shows(all, randomPart)).toBe(false);
+    expect(all.includes(header)).toBe(false);
+    expect(shows(all, TEST_XPUB)).toBe(false);
+    expect(shows(all, TEST_XPRV)).toBe(false);
+    expect(/(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])/.test(all)).toBe(false);
+    expectPlain(withPayment, 503, { refused: 'facilitator-not-given' });
   });
 });
 
@@ -340,6 +381,7 @@ describe('T11 and T12', () => {
     for (const [name, value] of Object.entries({ ...fakes, xpub: TEST_XPUB, xprv: TEST_XPRV })) {
       expect(shows(all, value), name).toBe(false);
     }
+    for (const [name, value] of Object.entries(verbatim)) expect(all.includes(value), name).toBe(false);
   });
   it('T12 clean-up: no process left, port closed, no env file, git status unchanged', async () => {
     expect(stops.length).toBe(7);

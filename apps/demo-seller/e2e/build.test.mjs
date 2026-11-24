@@ -12,7 +12,7 @@ import { X402_SPECIFIER } from './patterns.mjs';
 const dir = mappingDir();
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
 const SERVER = join(APP_DIR, '.next', 'server');
-const ROUTES = ['api/alpha', 'api/item/[id]', 'api/tiered'];
+const ROUTES = ['api/alpha', 'api/item/[id]', 'api/tiered', 'api/paid'];
 
 describe('T1 a duplicate index stops the build before next build', () => {
   it('build script with a duplicate-index mapping', () => {
@@ -29,7 +29,7 @@ describe('T1 a duplicate index stops the build before next build', () => {
 });
 
 describe('T2 the good build exists (built by the turbo build step before this test)', () => {
-  it('build output for the three routes', () => {
+  it('build output for the four routes', () => {
     expect(existsSync(join(APP_DIR, '.next', 'BUILD_ID'))).toBe(true);
     for (const r of ROUTES) expect(existsSync(join(SERVER, 'app', r, 'route.js'))).toBe(true);
   });
