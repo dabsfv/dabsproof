@@ -50,4 +50,35 @@ describe('isolation', () => {
     const walletTest = readFileSync(new URL('./wallet.test.ts', import.meta.url), 'utf8');
     expect(walletTest.includes('process.env.HOME') || walletTest.includes('homedir(')).toBe(false);
   });
+
+  it('chain.ts starts nothing, reads no environment, and stays inside the runner', async () => {
+    const source = readFileSync(new URL('../src/chain.ts', import.meta.url), 'utf8');
+    // (a) No module that starts a process or uses the network, no fetch, and nothing read from HOME or
+    // the environment.
+    const STARTS_OR_SENDS =
+      /['"`](?:node:)?(?:child_process|net|http|https|http2|dns|tls|dgram|cluster|worker_threads)['"`]|\bfetch\s*\(|\bspawn|\bexec(?:File)?(?:Sync)?\s*\(|process\.env|homedir/;
+    expect(STARTS_OR_SENDS.test(source)).toBe(false);
+    const specifiers = [...source.matchAll(/^import [^;]*? from ['"]([^'"]+)['"]/gm)].map((m) => m[1]);
+    expect(specifiers.sort()).toEqual(['@dabsproof/registry', 'node:path']);
+    // (b) No tracked file outside the runner's src/ and test/ names chain.ts or any of its exports; the
+    // CLI's source names none of them either.
+    const chain = await import('../src/chain.js');
+    const names = ['chain.ts', ...Object.keys(chain), 'ChainOptionsInput', 'ChainOptions', 'ChainReason'];
+    expect(names.length > 4).toBe(true);
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const elsewhere = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+      .split('\0')
+      .filter((f) => f !== '' && !f.startsWith('packages/runner/src/') && !f.startsWith('packages/runner/test/'));
+    expect(elsewhere.length > 0).toBe(true);
+    const named = elsewhere.filter((f) => {
+      const t = readFileSync(join(root, f), 'utf8');
+      return names.some((n) => t.includes(n));
+    });
+    expect(named).toEqual([]);
+    const cliSrc = join(CLI, 'src');
+    const cliFiles = readdirSync(cliSrc, { recursive: true })
+      .map((f) => join(cliSrc, String(f)))
+      .filter((f) => statSync(f).isFile());
+    expect(cliFiles.filter((f) => names.some((n) => readFileSync(f, 'utf8').includes(n))).length).toBe(0);
+  });
 });
