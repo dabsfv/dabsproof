@@ -123,4 +123,51 @@ describe('isolation', () => {
       .filter((f) => statSync(f).isFile());
     expect(cliFiles.filter((f) => names.some((n) => readFileSync(f, 'utf8').includes(n))).length).toBe(0);
   });
+
+  it('facilitator-local stays private and apart: the CLI and evm neither depend on nor import it, @x402/evm or viem', () => {
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const PKGS = ['@dabsproof/facilitator-local', '@x402/evm', 'viem'];
+    // An import or require of one of these packages, or a subpath of one, by its specifier (a comment
+    // that only names a package is not an import).
+    const IMPORTS =
+      /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)['"`](?:@dabsproof\/facilitator-local|@x402\/evm|viem)(?:\/[^'"`]*)?['"`]/m;
+    const filesUnder = (dir: string) =>
+      readdirSync(dir, { recursive: true })
+        .map((f) => join(dir, String(f)))
+        .filter((f) => statSync(f).isFile());
+    for (const pkgDir of ['packages/cli', 'packages/evm']) {
+      const pkg = JSON.parse(readFileSync(join(root, pkgDir, 'package.json'), 'utf8'));
+      const deps = {
+        ...pkg.dependencies,
+        ...pkg.devDependencies,
+        ...pkg.peerDependencies,
+        ...pkg.optionalDependencies,
+      };
+      expect(Object.keys(deps).filter((d) => PKGS.includes(d))).toEqual([]);
+      const src = filesUnder(join(root, pkgDir, 'src'));
+      expect(src.length > 0).toBe(true);
+      expect(src.filter((f) => IMPORTS.test(readFileSync(f, 'utf8'))).length).toBe(0);
+    }
+    // It stays private.
+    const own = JSON.parse(readFileSync(join(root, 'packages/facilitator-local/package.json'), 'utf8'));
+    expect(own.private).toBe(true);
+    // Its start function is named only inside its own package and the runner's tests.
+    const elsewhere = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+      .split('\0')
+      .filter(
+        (f) => f !== '' && !f.startsWith('packages/facilitator-local/') && !f.startsWith('packages/runner/test/'),
+      );
+    expect(elsewhere.length > 0).toBe(true);
+    expect(elsewhere.filter((f) => readFileSync(join(root, f), 'utf8').includes('startLocalFacilitator'))).toEqual([]);
+    // Its source holds no URL, no host name and no environment read.
+    const ownSrc = filesUnder(join(root, 'packages/facilitator-local/src'));
+    expect(ownSrc.length > 0).toBe(true);
+    const HOST_NAME = /\blocalhost\b|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|dev|xyz|app|test|local|sh|co)\b/i;
+    for (const f of ownSrc) {
+      const t = readFileSync(f, 'utf8');
+      expect(/https?:\/\//i.test(t)).toBe(false);
+      expect(HOST_NAME.test(t)).toBe(false);
+      expect(t.includes('process.env')).toBe(false);
+    }
+  });
 });
