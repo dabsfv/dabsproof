@@ -4,13 +4,16 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  buildJsonRequest,
   buildRequest,
   checkRequiredNetworks,
   checkTarget,
   type LocalTarget,
   MAX_BODY_BYTES,
+  MAX_JSON_BODY_BYTES,
   RequestBudget,
   sendLocal,
+  sendLocalJson,
 } from '../src/index.js';
 
 let server: Server | undefined;
@@ -151,5 +154,90 @@ describe('sending', () => {
     expect(checkRequiredNetworks(fixture('eip155:8453'))).toEqual({ ok: false, code: 'not-base-sepolia' });
     expect(checkRequiredNetworks(fixture('eip155:84532'))).toEqual({ ok: true });
     expect(checkRequiredNetworks('not base64 json')).toEqual({ ok: false, code: 'payment-required-undecodable' });
+  });
+});
+
+describe('sending one JSON body (sendLocalJson)', () => {
+  /** Records method, content type and body text only; answers with a small JSON reply. */
+  const seen: { method?: string | undefined; contentType?: string | undefined; body?: string; names?: string[] } = {};
+  const recorder = (req: IncomingMessage, res: ServerResponse) => {
+    const parts: Buffer[] = [];
+    req.on('data', (c: Buffer) => parts.push(c));
+    req.on('end', () => {
+      seen.method = req.method;
+      seen.contentType = req.headers['content-type'];
+      seen.body = Buffer.concat(parts).toString('utf8');
+      seen.names = Object.keys(req.headers);
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end('{"result":"ok"}');
+    });
+  };
+  const call = { jsonrpc: '2.0', id: 1, method: 'test_call', params: [] };
+
+  it('refuses a target that is not a loopback literal, before anything is sent', async () => {
+    for (const origin of ['http://10.0.0.1:1234', 'http://localhost:1234', 'https://127.0.0.1:1234', '']) {
+      const t = { origin, host: '127.0.0.1', port: 1234 } as LocalTarget;
+      expect(await sendLocalJson(t, budget(), 'r', '/', call)).toEqual({ ok: false, code: 'target-not-loopback' });
+    }
+  });
+  it('refuses a body over 4 KiB, or one that is not JSON, before anything is sent', async () => {
+    const target = await stub(recorder);
+    const over = 'x'.repeat(MAX_JSON_BODY_BYTES);
+    expect(await sendLocalJson(target, budget(), 'r', '/', { over })).toEqual({
+      ok: false,
+      code: 'request-body-too-large',
+    });
+    expect(await sendLocalJson(target, budget(), 'r', '/', undefined)).toEqual({
+      ok: false,
+      code: 'request-body-not-json',
+    });
+    expect(await sendLocalJson(target, budget(), 'r', '/', { n: 1n })).toEqual({
+      ok: false,
+      code: 'request-body-not-json',
+    });
+    expect(hits).toBe(0);
+    // A body of exactly 4 KiB is sent.
+    const exact = 'x'.repeat(MAX_JSON_BODY_BYTES - 2);
+    expect(Buffer.byteLength(JSON.stringify(exact))).toBe(MAX_JSON_BODY_BYTES);
+    expect((await sendLocalJson(target, budget(), 'r', '/', exact)).ok).toBe(true);
+    expect(hits).toBe(1);
+  });
+  it('never follows a redirect, on the same host or off it', async () => {
+    const off = await stub(redirectTo('http://example.test/'));
+    expect(await sendLocalJson(off, budget(), 'r', '/', call)).toEqual({ ok: false, code: 'redirect-off-host' });
+    expect(hits).toBe(1);
+    const s = server;
+    server = undefined;
+    s?.closeAllConnections();
+    await new Promise<void>((done) => s?.close(() => done()));
+    const same = await stub((_req, res) => redirectTo(`${same.origin}/x`)(_req, res));
+    expect(await sendLocalJson(same, budget(), 'r', '/', call)).toEqual({ ok: false, code: 'redirect-not-followed' });
+    expect(hits).toBe(1);
+  });
+  it('sends a POST with only the content-type header of its own, never a Host header', async () => {
+    const target = await stub(recorder);
+    const built = buildJsonRequest(target, '/', call);
+    expect(built.ok && built.init.headers).toEqual({ 'content-type': 'application/json' });
+    expect(built.ok && built.init.method).toBe('POST');
+    expect(built.ok && built.init.redirect).toBe('manual');
+    const r = await sendLocalJson(target, budget(), 'r', '/', call);
+    expect(r.ok && r.status).toBe(200);
+    expect(seen.method).toBe('POST');
+    expect(seen.contentType).toBe('application/json');
+    expect(JSON.parse(seen.body ?? '')).toEqual(call);
+    for (const name of ['authorization', 'cookie', 'payment-signature', 'x-payment']) {
+      expect(seen.names?.includes(name)).toBe(false);
+    }
+    expect(buildJsonRequest(target, '//example.test', call)).toEqual({ ok: false, code: 'path-invalid' });
+  });
+  it('takes one budget slot per call and refuses a 21st request', async () => {
+    const target = await stub(recorder);
+    const b = new RequestBudget({ requestsPerRoute: 20, burst: 1 });
+    for (let i = 0; i < 20; i++) expect((await sendLocalJson(target, b, 'chain-ready', '/', call)).ok).toBe(true);
+    expect(await sendLocalJson(target, b, 'chain-ready', '/', call)).toEqual({
+      ok: false,
+      code: 'route-request-limit',
+    });
+    expect(hits).toBe(20);
   });
 });

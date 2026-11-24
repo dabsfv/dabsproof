@@ -1,9 +1,12 @@
 // Sending one GET to a checked local target, within the budget. Redirects are never followed. The
-// body is read as a stream and refused, with none of it kept, once it passes MAX_BODY_BYTES.
+// body is read as a stream and refused, with none of it kept, once it passes MAX_BODY_BYTES. A second
+// sender, sendLocalJson, posts one small JSON body under the same rules (for a local JSON-RPC call).
 import type { RequestBudget } from './budget.js';
-import type { LocalTarget } from './target.js';
+import { checkTarget, type LocalTarget } from './target.js';
 
 export const MAX_BODY_BYTES = 1_048_576;
+/** The largest JSON body sendLocalJson will send. */
+export const MAX_JSON_BODY_BYTES = 4096;
 /** Only so that a server that never answers cannot stall a run. */
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -15,7 +18,10 @@ export type SendCode =
   | 'redirect-not-followed'
   | 'redirect-off-host'
   | 'body-too-large'
-  | 'request-failed';
+  | 'request-failed'
+  | 'target-not-loopback'
+  | 'request-body-not-json'
+  | 'request-body-too-large';
 
 /** A path from the manifest: one leading /, no // anywhere, and no backslash, @, #, white space or control character. */
 const PATH = /^\/[^\\@#\s]*$/;
@@ -118,6 +124,84 @@ export async function sendLocal(
     if (body === 'too-large') return { ok: false, code: 'body-too-large' };
     if (body === 'failed') return { ok: false, code: 'request-failed' };
     return { ok: true, status: res.status, headers: Object.fromEntries(res.headers), body };
+  } finally {
+    slot.release();
+  }
+}
+
+/**
+ * The JSON request the runner will make: POST, the target's origin plus a checked path, exactly one
+ * header (content-type: application/json) and the body as JSON text of at most MAX_JSON_BODY_BYTES.
+ * No other header can be given, and never a Host header. The target is checked again here.
+ */
+export function buildJsonRequest(
+  target: LocalTarget,
+  path: string,
+  body: unknown,
+):
+  | {
+      ok: true;
+      url: string;
+      init: { method: 'POST'; headers: { 'content-type': 'application/json' }; body: string; redirect: 'manual' };
+    }
+  | { ok: false; code: 'target-not-loopback' | 'path-invalid' | 'request-body-not-json' | 'request-body-too-large' } {
+  if (!checkTarget(target?.origin, { local: true }).ok) return { ok: false, code: 'target-not-loopback' };
+  const built = buildRequest(target, path);
+  if (!built.ok) return { ok: false, code: 'path-invalid' };
+  let text: string | undefined;
+  try {
+    text = JSON.stringify(body);
+  } catch {
+    text = undefined;
+  }
+  if (typeof text !== 'string') return { ok: false, code: 'request-body-not-json' };
+  if (Buffer.byteLength(text, 'utf8') > MAX_JSON_BODY_BYTES) return { ok: false, code: 'request-body-too-large' };
+  return {
+    ok: true,
+    url: built.url,
+    init: { method: 'POST', headers: { 'content-type': 'application/json' }, body: text, redirect: 'manual' },
+  };
+}
+
+/** Sends one JSON POST within the budget, under sendLocal's rules. Refusals come before anything is sent. */
+export async function sendLocalJson(
+  target: LocalTarget,
+  budget: RequestBudget,
+  route: string,
+  path: string,
+  body: unknown,
+): Promise<
+  { ok: true; status: number; headers: Record<string, string>; body: Uint8Array } | { ok: false; code: SendCode }
+> {
+  const built = buildJsonRequest(target, path, body);
+  if (!built.ok) return built;
+  const slot = budget.begin(route);
+  if (!slot.ok) return slot;
+  try {
+    let res: Response;
+    try {
+      res = await fetch(built.url, { ...built.init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    } catch {
+      return { ok: false, code: 'request-failed' };
+    }
+    const location = res.status >= 300 && res.status < 400 ? res.headers.get('location') : null;
+    if (location !== null) {
+      await res.body?.cancel().catch(() => {});
+      let next: URL;
+      try {
+        next = new URL(location, built.url);
+      } catch {
+        return { ok: false, code: 'redirect-off-host' };
+      }
+      return {
+        ok: false,
+        code: next.origin === new URL(built.url).origin ? 'redirect-not-followed' : 'redirect-off-host',
+      };
+    }
+    const reply = await readCapped(res);
+    if (reply === 'too-large') return { ok: false, code: 'body-too-large' };
+    if (reply === 'failed') return { ok: false, code: 'request-failed' };
+    return { ok: true, status: res.status, headers: Object.fromEntries(res.headers), body: reply };
   } finally {
     slot.release();
   }

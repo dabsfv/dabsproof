@@ -81,4 +81,46 @@ describe('isolation', () => {
       .filter((f) => statSync(f).isFile());
     expect(cliFiles.filter((f) => names.some((n) => readFileSync(f, 'utf8').includes(n))).length).toBe(0);
   });
+
+  it('chain-process.ts sends only through the runner, reads no environment, and stays inside the runner', async () => {
+    const source = readFileSync(new URL('../src/chain-process.ts', import.meta.url), 'utf8');
+    // No fetch of its own (it polls through sendLocalJson), no HOME and no environment value read at
+    // all: process.env is allowed nowhere in this file. The child's environment is exactly the fixed
+    // PATH below, and no state, funding or impersonation flag is named.
+    expect(/\bfetch\s*\(/.test(source)).toBe(false);
+    expect(source.includes('process.env')).toBe(false);
+    expect(source.includes('homedir')).toBe(false);
+    expect(source.includes("Object.freeze({ PATH: '/usr/bin:/bin' })")).toBe(true);
+    for (const flag of ['--state', '--dump-state', '--load-state', '--fund-accounts', '--auto-impersonate']) {
+      expect(source.includes(flag)).toBe(false);
+    }
+    expect(source.includes('shell: false')).toBe(true);
+    // No tracked file outside the runner's src/ and test/ names chain-process.ts or its exports; the
+    // CLI's source names none of them either.
+    const mod = await import('../src/chain-process.js');
+    const names = [
+      'chain-process.ts',
+      ...Object.keys(mod),
+      'ChainProcessInput',
+      'ChainProcessReason',
+      'ChainProcess',
+      'ChainStopResult',
+    ];
+    expect(names.length > 4).toBe(true);
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const elsewhere = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' })
+      .split('\0')
+      .filter((f) => f !== '' && !f.startsWith('packages/runner/src/') && !f.startsWith('packages/runner/test/'));
+    expect(elsewhere.length > 0).toBe(true);
+    const named = elsewhere.filter((f) => {
+      const t = readFileSync(join(root, f), 'utf8');
+      return names.some((n) => t.includes(n));
+    });
+    expect(named).toEqual([]);
+    const cliSrc = join(CLI, 'src');
+    const cliFiles = readdirSync(cliSrc, { recursive: true })
+      .map((f) => join(cliSrc, String(f)))
+      .filter((f) => statSync(f).isFile());
+    expect(cliFiles.filter((f) => names.some((n) => readFileSync(f, 'utf8').includes(n))).length).toBe(0);
+  });
 });
