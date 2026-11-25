@@ -1,6 +1,6 @@
 // The CLI promises it sends nothing anywhere, so it must not depend on or import the runner.
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { brand } from '@dabsproof/brand';
@@ -289,5 +289,70 @@ describe('isolation', () => {
     expect(HOST_NAME.test(fakeText)).toBe(false);
     expect([...new Set(fakeText.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) ?? [])]).toEqual(['127.0.0.1']);
     expect(fakeText.includes("listen(Number(flag('--port')), '127.0.0.1')")).toBe(true);
+  });
+
+  it('only the opt-in fork test names the public endpoint and its own port, and it sends just its pin request', () => {
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const FILE = 'packages/runner/test/fund.fork.test.mjs';
+    // Built from parts so that this file does not hold the texts it looks for.
+    const HOST = ['sepolia', 'base', 'org'].join('.');
+    const PORT_TEXT = String(18549 + 1);
+    // Tracked files and new files not yet committed (ignored files excluded), read as text.
+    const files = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter((f) => f !== '' && existsSync(join(root, f)) && statSync(join(root, f)).isFile());
+    expect(files.includes(FILE)).toBe(true);
+    const text = (f: string) => readFileSync(join(root, f), 'utf8');
+    // The endpoint's host, with or without https://, appears in that one file only: no src/ file, no
+    // other test, no tool and no workflow names it.
+    expect(files.filter((f) => text(f).includes(HOST))).toEqual([FILE]);
+    // The port is named in that one file only (the lockfile is left out: its hashes are not text).
+    expect(files.filter((f) => f !== 'pnpm-lock.yaml' && text(f).includes(PORT_TEXT))).toEqual([FILE]);
+
+    const source = text(FILE);
+    // Exactly two URL forms: the endpoint, and the loopback origin on its own port.
+    const urls = source.match(/\b[a-z][a-z0-9+.-]*:\/\/[^\s'"`]*/gi) ?? [];
+    expect(urls).toEqual([`https://${HOST}`, `http://127.0.0.1:${'$'}{PORT}`]);
+    expect([...new Set(source.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) ?? [])]).toEqual(['127.0.0.1']);
+    expect(source.includes(`const PORT = ${PORT_TEXT};`)).toBe(true);
+    // One fetch only, the pin request, with no credentials, no redirect followed and a deadline.
+    expect(source.match(/\bfetch\s*\(/g)?.length).toBe(1);
+    expect(source.includes('fetch(FORK_URL, {')).toBe(true);
+    for (const part of [
+      "'User-Agent': 'repo-check'",
+      "credentials: 'omit'",
+      "redirect: 'manual'",
+      'signal: AbortSignal.timeout(PIN_DEADLINE_MS)',
+      'const PIN_DEADLINE_MS = 10_000;',
+      'const PIN_MAX_BYTES = 64 * 1024;',
+    ]) {
+      expect(source.includes(part)).toBe(true);
+    }
+    expect(/authorization|cookie/i.test(source)).toBe(false);
+    // It runs only when both variables are set, and is skipped otherwise.
+    expect(source.includes("const ASKED = process.env.DABSPROOF_FORK_TEST === '1';")).toBe(true);
+    expect(source.includes('const READY = ASKED && typeof BIN === ')).toBe(true);
+    expect(source.includes('const run = READY ? describe : describe.skip;')).toBe(true);
+    // No viem, no file module, no process started, and no funding method of its own: the funding
+    // methods stay in fund.ts.
+    const IMPORTS_VIEM = /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)['"`]viem(?:\/[^'"`]*)?['"`]/m;
+    expect(IMPORTS_VIEM.test(source)).toBe(false);
+    expect(/['"`](?:node:)?(?:fs|fs\/promises|child_process)['"`]/.test(source)).toBe(false);
+    expect(
+      /\b(?:writeFile|writeFileSync|appendFile|appendFileSync|createWriteStream|mkdir|mkdirSync)\b/.test(source),
+    ).toBe(false);
+    for (const m of [
+      'anvil_setBalance',
+      'anvil_impersonateAccount',
+      'anvil_stopImpersonatingAccount',
+      'eth_sendTransaction',
+      'anvil_dealERC20',
+      'anvil_setStorageAt',
+    ]) {
+      expect(source.includes(m)).toBe(false);
+    }
   });
 });
