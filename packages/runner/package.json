@@ -21,6 +21,8 @@
     "@dabsproof/brand": "workspace:*",
     "@dabsproof/core": "workspace:*",
     "@dabsproof/evm": "workspace:*",
-    "@dabsproof/registry": "workspace:*"
+    "@dabsproof/registry": "workspace:*",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0"
   }
 }
