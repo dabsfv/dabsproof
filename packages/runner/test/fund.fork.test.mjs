@@ -103,6 +103,7 @@ run(
       expect(pin.chainId).toBe(84532n);
       expect(pin.block > 0n).toBe(true);
       const forkBlock = Number(pin.block);
+      console.log(`fork funding: pinned block ${forkBlock}`);
 
       let chain;
       try {
@@ -143,7 +144,7 @@ run(
         expect(await read(`${FUND_SELECTORS.balanceOf}${pad(buyer)}`)).toBe(0n);
 
         const funded = await fundBuyer({ chain, buyer, relayer, usdcUnits: UNITS, relayerEthWei: 10n ** 17n });
-        expect(funded.ok).toBe(true);
+        expect(funded.ok, `reason=${funded.reason} step=${funded.step}`).toBe(true);
 
         expect(await read(`${FUND_SELECTORS.balanceOf}${pad(buyer)}`)).toBe(UNITS);
         expect(await read(FUND_SELECTORS.totalSupply)).toBe(supplyBefore + UNITS);

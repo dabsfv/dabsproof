@@ -3,11 +3,14 @@
 // time through checkTarget and sendLocalJson, so the request budget applies. USDC comes through the
 // token's own mint path: the masterMinter address is read from the chain, impersonated on the local
 // fork only, made a minter with an allowance of exactly the amount, and used to mint to the buyer.
-// Impersonation is stopped in every case. The relayer gets ETH for gas, and so does the masterMinter
-// for its own two transactions; the buyer gets USDC only. Caps are checked before anything is sent:
-// at most 10 USDC per chain across all mints, and at most 1 ETH per account. Nothing is signed, no
-// key is used, nothing is read from or written to any file, and no environment value is read. This
-// says nothing about how a real network or a real facilitator behaves.
+// Each transaction's receipt is asked for a few times, a fixed short time apart, while it is not there
+// yet, on a route of its own with its own budget; a receipt whose status is not success is never
+// asked about again. Impersonation is stopped in every case. The relayer gets ETH for gas, and so
+// does the masterMinter for its own two transactions; the buyer gets USDC only. Caps are checked
+// before anything is sent: at most 10 USDC per chain across all mints, and at most 1 ETH per
+// account. Nothing is signed, no key is used, nothing is read from or written to any file, and no
+// environment value is read. This says nothing about how a real network or a real facilitator
+// behaves.
 import { RequestBudget } from './budget.js';
 import { ANVIL_CHAIN_ID, ANVIL_HOST } from './chain.js';
 import { sendLocalJson } from './send.js';
@@ -41,7 +44,15 @@ export const FUND_METHODS: readonly string[] = Object.freeze([
   'eth_getTransactionReceipt',
   'anvil_stopImpersonatingAccount',
 ]);
+/** At most this many receipt requests per transaction, asked again only while the reply is null. */
+export const FUND_RECEIPT_TRIES = 5;
+/** The fixed wait between two receipt requests for one transaction. */
+export const FUND_RECEIPT_SPACING_MS = 200;
 const FUND_ROUTE = 'fund';
+/** Receipt requests go on their own route with their own budget, apart from the funding route. */
+const RECEIPT_ROUTE = 'fund-receipt';
+const RECEIPT_METHOD = 'eth_getTransactionReceipt';
+const HEX = /^0x[0-9a-fA-F]+$/;
 const EXPECTED_CHAIN_ID = `0x${ANVIL_CHAIN_ID.toString(16)}`;
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const WORD = /^0x[0-9a-fA-F]{64}$/;
@@ -64,6 +75,8 @@ export type FundReason =
   | 'token-paused'
   | 'buyer-blacklisted'
   | 'transaction-failed'
+  | 'receipt-missing'
+  | 'receipt-malformed'
   | 'stop-impersonation-failed'
   | 'read-back-mismatch';
 
@@ -107,12 +120,17 @@ const hexQuantity = (n: bigint) => `0x${n.toString(16)}`;
 interface Context {
   target: Parameters<typeof sendLocalJson>[0];
   budget: RequestBudget;
+  receiptBudget: RequestBudget;
   id: number;
   masterMinter: string | null;
 }
 
+const sleep = (ms: number) => new Promise<void>((done) => setTimeout(done, ms));
+
 async function rpc(ctx: Context, method: string, params: unknown[]): Promise<unknown> {
   if (!FUND_METHODS.includes(method)) throw new Refusal('method-not-allowed', method);
+  // Receipt requests, and only they, go on the receipt route with the receipt budget.
+  const onReceiptRoute = method === RECEIPT_METHOD;
   if (method === 'anvil_impersonateAccount' || method === 'anvil_stopImpersonatingAccount') {
     if (ctx.masterMinter === null || String(params[0]).toLowerCase() !== ctx.masterMinter) {
       throw new Refusal('impersonation-not-allowed', method);
@@ -132,7 +150,9 @@ async function rpc(ctx: Context, method: string, params: unknown[]): Promise<unk
     }
   }
   ctx.id += 1;
-  const r = await sendLocalJson(ctx.target, ctx.budget, FUND_ROUTE, '/', {
+  const budget = onReceiptRoute ? ctx.receiptBudget : ctx.budget;
+  const route = onReceiptRoute ? RECEIPT_ROUTE : FUND_ROUTE;
+  const r = await sendLocalJson(ctx.target, budget, route, '/', {
     jsonrpc: '2.0',
     id: ctx.id,
     method,
@@ -160,10 +180,28 @@ async function readWord(ctx: Context, step: string, data: string): Promise<strin
 async function sendAndConfirm(ctx: Context, step: string, data: string): Promise<void> {
   const hash = await rpc(ctx, 'eth_sendTransaction', [{ from: ctx.masterMinter, to: FUND_USDC_ADDRESS, data }]);
   if (typeof hash !== 'string' || WORD.exec(hash) === null) throw new Refusal('reply-bad-shape', step);
-  const receipt = await rpc(ctx, 'eth_getTransactionReceipt', [hash]);
-  if (receipt === null || typeof receipt !== 'object' || (receipt as { status?: unknown }).status !== '0x1') {
-    throw new Refusal('transaction-failed', step);
+  const receipt = await waitForReceipt(ctx, step, hash);
+  if (typeof receipt !== 'object' || receipt === null || Array.isArray(receipt)) {
+    throw new Refusal('receipt-malformed', step);
   }
+  const status = (receipt as { status?: unknown }).status;
+  if (typeof status !== 'string' || HEX.exec(status) === null) throw new Refusal('receipt-malformed', step);
+  // Any status but 0x1 is a failed transaction, and is never asked about again.
+  if (status !== '0x1') throw new Refusal('transaction-failed', step);
+}
+
+/**
+ * Asks for the receipt up to FUND_RECEIPT_TRIES times, FUND_RECEIPT_SPACING_MS apart, and only while
+ * the reply is null (not mined yet). The first reply that is not null is returned as it is, for the
+ * caller to check. When no try is left, the reason is receipt-missing.
+ */
+async function waitForReceipt(ctx: Context, step: string, hash: string): Promise<unknown> {
+  for (let attempt = 1; attempt <= FUND_RECEIPT_TRIES; attempt++) {
+    const receipt = await rpc(ctx, RECEIPT_METHOD, [hash]);
+    if (receipt !== null) return receipt;
+    if (attempt < FUND_RECEIPT_TRIES) await sleep(FUND_RECEIPT_SPACING_MS);
+  }
+  throw new Refusal('receipt-missing', step);
 }
 
 /** Checks every input before anything is sent; returns the amounts as bigints or a reason code. */
@@ -202,6 +240,7 @@ export async function fundBuyer(input: FundInput): Promise<FundResult> {
   const ctx: Context = {
     target: target.target,
     budget: new RequestBudget({ requestsPerRoute: 20, burst: 1 }),
+    receiptBudget: new RequestBudget({ requestsPerRoute: 20, burst: 1 }),
     id: 0,
     masterMinter: null,
   };

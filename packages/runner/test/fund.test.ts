@@ -7,12 +7,14 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { ALLOWED_NETWORKS, BASE_SEPOLIA } from '@dabsproof/evm';
 import { afterEach, describe, expect, it } from 'vitest';
+import { FUND_RECEIPT_SPACING_MS, FUND_RECEIPT_TRIES } from '../src/fund.js';
 import {
   FUND_METHODS,
   FUND_SELECTORS,
   FUND_USDC_ADDRESS,
   type FundChain,
   fundBuyer,
+  HARD_LIMITS,
   MAX_ETH_WEI,
   MAX_USDC_UNITS,
 } from '../src/index.js';
@@ -59,6 +61,17 @@ describe('funding a buyer: constants (nothing is sent)', () => {
   it('the USDC address is the asset the evm package allows on Base Sepolia', () => {
     const allowed = ALLOWED_NETWORKS[BASE_SEPOLIA]?.assets.map((a) => a.address.toLowerCase()) ?? [];
     expect(allowed).toContain(FUND_USDC_ADDRESS.toLowerCase());
+  });
+  it('the receipt wait is 5 tries 200 ms apart, and the worst case fits each route within the hard limit', () => {
+    expect(FUND_RECEIPT_TRIES).toBe(5);
+    expect(FUND_RECEIPT_SPACING_MS).toBe(200);
+    // Two transactions, each asked about at most FUND_RECEIPT_TRIES times on the receipt route.
+    expect(2 * FUND_RECEIPT_TRIES <= HARD_LIMITS.requestsPerRoute).toBe(true);
+    // The funding route: chain id, 5 reads, 2 balances, impersonate, 2 sends, stop, 2 read-backs.
+    expect(1 + 5 + 2 + 1 + 2 + 1 + 2 <= HARD_LIMITS.requestsPerRoute).toBe(true);
+    expect(HARD_LIMITS.requestsPerRoute).toBe(20);
+    // The most time the wait can add per transaction.
+    expect((FUND_RECEIPT_TRIES - 1) * FUND_RECEIPT_SPACING_MS).toBe(800);
   });
   it('the caps are 10 USDC per chain and 1 ETH per account', () => {
     expect(MAX_USDC_UNITS).toBe(10_000_000n);

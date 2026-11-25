@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { FUND_RECEIPT_TRIES } from '../src/fund.js';
 import {
   type ChainProcess,
   FUND_SELECTORS,
@@ -25,7 +26,19 @@ const PORT = 18549;
 const FORK = `https://rpc-${randomBytes(4).toString('hex')}.example.test/`;
 const REPO = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/, '');
 const START_SUPPLY = 1_000_000_000n;
-type Mode = 'ok' | 'paused' | 'blacklisted' | 'send-error' | 'no-effect' | 'stop-error' | 'send-and-stop-error';
+type Mode =
+  | 'ok'
+  | 'paused'
+  | 'blacklisted'
+  | 'send-error'
+  | 'no-effect'
+  | 'stop-error'
+  | 'send-and-stop-error'
+  | 'receipt-late'
+  | 'receipt-never'
+  | 'receipt-failed'
+  | 'receipt-malformed'
+  | 'receipt-realistic';
 type Entry = { method: string; params: unknown[] };
 
 let dir = '';
@@ -62,6 +75,7 @@ const flag = (f) => { const i = args.indexOf(f); return i === -1 ? null : args[i
 let supply = ${START_SUPPLY}n;
 const balances = new Map();
 let impersonating = null;
+let asked = 0;
 const word = (n) => '0x' + n.toString(16).padStart(64, '0');
 const reply = (res, id, body) => {
   res.writeHead(200, { 'content-type': 'application/json' });
@@ -104,6 +118,7 @@ const server = http.createServer((req, res) => {
         return reply(res, msg.id, { error: { code: -32003, message: 'refused' } });
       }
       if (String(tx.from).toLowerCase() !== impersonating) return reply(res, msg.id, { error: { code: -32004, message: 'no' } });
+      asked = 0;
       const data = String(tx.data);
       if (data.startsWith('0x40c10f19') && MODE !== 'no-effect') {
         const to = data.slice(34, 74);
@@ -113,7 +128,42 @@ const server = http.createServer((req, res) => {
       }
       return reply(res, msg.id, { result: '0x' + 'ab'.repeat(32) });
     }
-    if (msg.method === 'eth_getTransactionReceipt') return reply(res, msg.id, { result: { status: '0x1' } });
+    if (msg.method === 'eth_getTransactionReceipt') {
+      asked += 1;
+      if (MODE === 'receipt-never') return reply(res, msg.id, { result: null });
+      if (MODE === 'receipt-late' && asked <= 2) return reply(res, msg.id, { result: null });
+      if (MODE === 'receipt-failed') return reply(res, msg.id, { result: { status: '0x0' } });
+      if (MODE === 'receipt-malformed') return reply(res, msg.id, { result: { blockNumber: '0x1' } });
+      if (MODE === 'receipt-realistic') {
+        return reply(res, msg.id, {
+          result: {
+            type: '0x2',
+            status: '0x1',
+            cumulativeGasUsed: '0x1358d',
+            logs: [{ address: '0x036cbd53842c5426634e7929541ec2318f3dcf7e', topics: ['0x' + 'cd'.repeat(32)], data: '0x' + '00'.repeat(32), blockHash: '0x' + 'ef'.repeat(32), blockNumber: '0x3ca1f48', transactionHash: p[0], transactionIndex: '0x0', logIndex: '0x0', removed: false }],
+            logsBloom: '0x' + '00'.repeat(256),
+            transactionHash: p[0],
+            transactionIndex: '0x0',
+            blockHash: '0x' + 'ef'.repeat(32),
+            blockNumber: '0x3ca1f48',
+            gasUsed: '0x1358d',
+            effectiveGasPrice: '0x3b9aca00',
+            from: impersonating,
+            to: '0x036cbd53842c5426634e7929541ec2318f3dcf7e',
+            contractAddress: null,
+            l1GasPrice: '0x1',
+            l1GasUsed: '0x640',
+            l1Fee: '0x640',
+            l1BaseFeeScalar: '0x1',
+            l1BlobBaseFee: '0x1',
+            l1BlobBaseFeeScalar: '0x1',
+            depositNonce: null,
+            depositReceiptVersion: null,
+          },
+        });
+      }
+      return reply(res, msg.id, { result: { status: '0x1' } });
+    }
     return reply(res, msg.id, { error: { code: -32601, message: 'not found' } });
   });
 });
@@ -323,6 +373,117 @@ describe('fundBuyer against a fake anvil on 127.0.0.1:18549 (no fork is contacte
         .slice(before)
         .some((e) => e.method === 'anvil_stopImpersonatingAccount'),
     ).toBe(true);
+  });
+
+  it('a receipt that is not there for the first 2 tries is waited for, and funding succeeds', async () => {
+    const { bin, log } = fake('receipt-late');
+    const chain = await startFork(bin);
+    const before = entries(log).length;
+    const r = await fundBuyer({ chain, buyer: address(), relayer: address(), usdcUnits: 1n, relayerEthWei: 1n });
+    expect(r.ok).toBe(true);
+    const methods = entries(log)
+      .slice(before)
+      .map((e) => e.method);
+    const receipts = (from: number) => {
+      let n = 0;
+      for (let i = from + 1; i < methods.length && methods[i] === 'eth_getTransactionReceipt'; i++) n++;
+      return n;
+    };
+    const sends = methods.flatMap((m, i) => (m === 'eth_sendTransaction' ? [i] : []));
+    expect(sends.length).toBe(2);
+    expect(sends.map(receipts)).toEqual([3, 3]);
+  });
+
+  it('a receipt that never comes gives receipt-missing after the last try, the stop is still sent, and nothing after it', async () => {
+    const { bin, log, master } = fake('receipt-never');
+    const chain = await startFork(bin);
+    const before = entries(log).length;
+    const t0 = Date.now();
+    expect(await fundBuyer({ chain, buyer: address(), relayer: address(), usdcUnits: 1n, relayerEthWei: 1n })).toEqual({
+      ok: false,
+      reason: 'receipt-missing',
+      step: 'configureMinter',
+    });
+    expect(Date.now() - t0 >= (FUND_RECEIPT_TRIES - 1) * 200 - 50).toBe(true);
+    const after = entries(log).slice(before);
+    expect(after.map((e) => e.method).slice(-(FUND_RECEIPT_TRIES + 3))).toEqual([
+      'anvil_impersonateAccount',
+      'eth_sendTransaction',
+      ...Array.from({ length: FUND_RECEIPT_TRIES }, () => 'eth_getTransactionReceipt'),
+      'anvil_stopImpersonatingAccount',
+    ]);
+    expect(after.at(-1)?.params).toEqual([master]);
+  });
+
+  it('a receipt with status 0x0 gives transaction-failed at once: asked about once, never again', async () => {
+    const { bin, log } = fake('receipt-failed');
+    const chain = await startFork(bin);
+    const before = entries(log).length;
+    expect(await fundBuyer({ chain, buyer: address(), relayer: address(), usdcUnits: 1n, relayerEthWei: 1n })).toEqual({
+      ok: false,
+      reason: 'transaction-failed',
+      step: 'configureMinter',
+    });
+    const methods = entries(log)
+      .slice(before)
+      .map((e) => e.method);
+    expect(methods.slice(-3)).toEqual([
+      'eth_sendTransaction',
+      'eth_getTransactionReceipt',
+      'anvil_stopImpersonatingAccount',
+    ]);
+    expect(methods.filter((m) => m === 'eth_getTransactionReceipt').length).toBe(1);
+  });
+
+  it('a receipt with no status gives receipt-malformed, asked about once', async () => {
+    const { bin, log } = fake('receipt-malformed');
+    const chain = await startFork(bin);
+    const before = entries(log).length;
+    expect(await fundBuyer({ chain, buyer: address(), relayer: address(), usdcUnits: 1n, relayerEthWei: 1n })).toEqual({
+      ok: false,
+      reason: 'receipt-malformed',
+      step: 'configureMinter',
+    });
+    const methods = entries(log)
+      .slice(before)
+      .map((e) => e.method);
+    expect(methods.slice(-3)).toEqual([
+      'eth_sendTransaction',
+      'eth_getTransactionReceipt',
+      'anvil_stopImpersonatingAccount',
+    ]);
+  });
+
+  it('a receipt in a realistic shape, with logs, fees and the extra fields of an OP-stack chain, succeeds', async () => {
+    const { bin } = fake('receipt-realistic');
+    const chain = await startFork(bin);
+    const units = 2_000_000n;
+    const r = await fundBuyer({ chain, buyer: address(), relayer: address(), usdcUnits: units, relayerEthWei: 1n });
+    expect(r.ok && r.minted).toBe(units);
+  });
+
+  it('the receipt wait stays within its budget, and the funding route stays at 14 requests', async () => {
+    const { bin, log } = fake('receipt-never');
+    const chain = await startFork(bin);
+    const before = entries(log).length;
+    await fundBuyer({ chain, buyer: address(), relayer: address(), usdcUnits: 1n, relayerEthWei: 1n });
+    const receiptCount = entries(log)
+      .slice(before)
+      .filter((e) => e.method === 'eth_getTransactionReceipt').length;
+    expect(receiptCount).toBe(FUND_RECEIPT_TRIES);
+    expect(2 * FUND_RECEIPT_TRIES <= 20).toBe(true);
+    // Both fakes use the one port, so the first is stopped before the second starts.
+    await chain.stop();
+    // A full success on the funding route, without its receipts: 14 of the 20 allowed.
+    const ok = fake('ok');
+    const okChain = await startFork(ok.bin);
+    const okBefore = entries(ok.log).length;
+    expect(
+      (await fundBuyer({ chain: okChain, buyer: address(), relayer: address(), usdcUnits: 1n, relayerEthWei: 1n })).ok,
+    ).toBe(true);
+    const okEntries = entries(ok.log).slice(okBefore);
+    expect(okEntries.filter((e) => e.method !== 'eth_getTransactionReceipt').length).toBe(14);
+    expect(okEntries.filter((e) => e.method === 'eth_getTransactionReceipt').length).toBe(2);
   });
 
   it('nothing at all is sent for a chain that was not started as a fork', async () => {
