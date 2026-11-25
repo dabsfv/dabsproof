@@ -355,4 +355,42 @@ describe('isolation', () => {
       expect(source.includes(m)).toBe(false);
     }
   });
+
+  it('typed-data.ts imports only hashing and the shared constants, does no input or output, and stays inside the runner', () => {
+    const source = readFileSync(new URL('../src/typed-data.ts', import.meta.url), 'utf8');
+    const specifiers = [...source.matchAll(/^import [^;]*? from ['"]([^'"]+)['"]/gm)].map((m) => m[1] ?? '');
+    expect(specifiers.length > 0).toBe(true);
+    const ALLOWED = ['@dabsproof/evm', '@dabsproof/registry', '@dabsproof/brand', 'node:buffer'];
+    for (const s of specifiers) {
+      const ok = ALLOWED.includes(s) || s === '@noble/hashes' || s.startsWith('@noble/hashes/') || s.startsWith('./');
+      expect(ok, s).toBe(true);
+    }
+    // No dynamic import or require either, so the list above is the whole list.
+    expect(/\bimport\s*\(|\brequire\s*\(/.test(source)).toBe(false);
+    for (const banned of [
+      'console',
+      'process.stdout',
+      'process.stderr',
+      'process.env',
+      'node:fs',
+      'node:child_process',
+      'node:net',
+    ]) {
+      expect(source.includes(banned), banned).toBe(false);
+    }
+    expect(/\bfetch\s*\(/.test(source)).toBe(false);
+    // Nothing outside the runner names the file or its exports: tracked files and new files not yet
+    // committed, ignored files left out.
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const outside = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter((f) => f !== '' && !f.startsWith('packages/runner/') && existsSync(join(root, f)))
+      .filter((f) => statSync(join(root, f)).isFile());
+    expect(outside.length > 0).toBe(true);
+    const NAMES = ['typed-data', 'transferDigest', 'TRANSFER_DOMAIN_SEPARATOR', 'TRANSFER_DOMAIN'];
+    expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
+  });
 });
