@@ -393,4 +393,49 @@ describe('isolation', () => {
     const NAMES = ['typed-data', 'transferDigest', 'TRANSFER_DOMAIN_SEPARATOR', 'TRANSFER_DOMAIN'];
     expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
   });
+
+  it('authorise.ts imports only the allowed modules, has no time, randomness or output of its own, and stays inside the runner', () => {
+    const source = readFileSync(new URL('../src/authorise.ts', import.meta.url), 'utf8');
+    const specifiers = [...source.matchAll(/^import [^;]*? from ['"]([^'"]+)['"]/gm)].map((m) => m[1] ?? '');
+    expect(specifiers.length > 0).toBe(true);
+    const ALLOWED = ['@dabsproof/registry', '@dabsproof/evm', '@dabsproof/brand'];
+    for (const s of specifiers) expect(ALLOWED.includes(s) || s.startsWith('./'), s).toBe(true);
+    expect(/\bimport\s*\(|\brequire\s*\(/.test(source)).toBe(false);
+    for (const banned of [
+      'node:crypto',
+      'node:fs',
+      'node:child_process',
+      'node:net',
+      'console',
+      'process.stdout',
+      'process.stderr',
+      'process.env',
+      'Date.now',
+      'Math.random',
+    ]) {
+      expect(source.includes(banned), banned).toBe(false);
+    }
+    expect(/\bfetch\s*\(/.test(source)).toBe(false);
+    // The nonce and digest are read through readPlanForSigning only. For now no other runner source
+    // file names it; when the signer is written, only signer.ts may.
+    const own = fileURLToPath(new URL('../src/', import.meta.url));
+    const srcFiles = readdirSync(own, { recursive: true })
+      .map((f) => join(own, String(f)))
+      .filter((f) => statSync(f).isFile());
+    expect(
+      srcFiles.filter((f) => readFileSync(f, 'utf8').includes('readPlanForSigning')).map((f) => basename(f)),
+    ).toEqual(['authorise.ts']);
+    // Nothing outside the runner names the file or its exports (tracked and new files, ignored left out).
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const outside = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter((f) => f !== '' && !f.startsWith('packages/runner/') && existsSync(join(root, f)))
+      .filter((f) => statSync(join(root, f)).isFile());
+    expect(outside.length > 0).toBe(true);
+    const NAMES = ['authorise.ts', 'readPlanForSigning', 'isCheckedPlan', 'CheckedPlan', 'AuthoriseReason'];
+    expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
+  });
 });
