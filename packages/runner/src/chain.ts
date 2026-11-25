@@ -16,6 +16,21 @@ export const ANVIL_HOST = '127.0.0.1';
 export const ANVIL_CHAIN_ID = Number(BASE_SEPOLIA.split(':')[1]);
 /** The demo harness's port; the chain never uses it. */
 const RESERVED_PORT = 4319;
+/**
+ * For a validated fork only, in this order, after --no-fork-node-info: no RPC cache on disk, no
+ * retries of the fork endpoint, a 10 s limit per fork request, and our own User-Agent on every fork
+ * request. Wording from anvil's help text; whether anvil accepts a retry count of 0 could not be
+ * verified here.
+ */
+export const FORK_LIMIT_ARGS: readonly string[] = Object.freeze([
+  '--no-storage-caching',
+  '--retries',
+  '0',
+  '--timeout',
+  '10000',
+  '--fork-header',
+  'User-Agent: repo-check',
+]);
 
 export const CHAIN_REASONS = [
   'host-not-loopback-literal',
@@ -221,9 +236,10 @@ export function validateChainOptions(
 
 /**
  * The argument list for anvil, built from validated options only: host, port, chain id and no dev
- * accounts; for a validated fork, the fork URL, the pinned block and --no-fork-node-info (which, by
- * anvil's help text, skips its node-info probe of the fork endpoint); and --dump-state or
- * --load-state when one was validated. Never --state, a funding flag or an impersonation flag.
+ * accounts; for a validated fork, the fork URL, the pinned block, --no-fork-node-info (which, by
+ * anvil's help text, skips its node-info probe of the fork endpoint) and then FORK_LIMIT_ARGS; and
+ * --dump-state or --load-state when one was validated. Never --state, a funding flag, an
+ * impersonation flag or a rate-limit flag.
  * Returns the list and starts nothing. Throws if the options did not come from validateChainOptions.
  */
 export function buildAnvilArgs(options: ChainOptions): string[] {
@@ -240,6 +256,7 @@ export function buildAnvilArgs(options: ChainOptions): string[] {
   ];
   if (options.fork) {
     args.push('--fork-url', options.fork.url, '--fork-block-number', String(options.fork.block), '--no-fork-node-info');
+    args.push(...FORK_LIMIT_ARGS);
   }
   if (options.dumpStatePath !== null) args.push('--dump-state', options.dumpStatePath);
   if (options.loadStatePath !== null) args.push('--load-state', options.loadStatePath);

@@ -4,6 +4,7 @@
 // where a path really leads could not be verified here. These tests say nothing about anvil itself.
 import { randomBytes, randomInt } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { FORK_LIMIT_ARGS } from '../src/chain.js';
 import {
   ANVIL_CHAIN_ID,
   buildAnvilArgs,
@@ -50,9 +51,31 @@ const optionsOf = (input: ChainOptionsInput): ChainOptions => {
   return r.options;
 };
 const BASE_ARGS = () => ['--host', '127.0.0.1', '--port', String(PORT), '--chain-id', '84532', '--accounts', '0'];
-const FORK_ARGS = () => ['--fork-url', FORK, '--fork-block-number', String(BLOCK), '--no-fork-node-info'];
+/** Written out in full, not taken from the constant, so that the order is checked as text. */
+const FORK_ARGS = () => [
+  '--fork-url',
+  FORK,
+  '--fork-block-number',
+  String(BLOCK),
+  '--no-fork-node-info',
+  '--no-storage-caching',
+  '--retries',
+  '0',
+  '--timeout',
+  '10000',
+  '--fork-header',
+  'User-Agent: repo-check',
+];
+const FORK_LIMIT_FLAGS = ['--no-storage-caching', '--retries', '--timeout', '--fork-header'];
 /** Never produced, whatever the input. */
-const NEVER = ['--state', '--fund-accounts', '--auto-impersonate'];
+const NEVER = [
+  '--state',
+  '--fund-accounts',
+  '--auto-impersonate',
+  '--compute-units-per-second',
+  '--no-rate-limit',
+  '--no-rpc-rate-limit',
+];
 
 describe('the local chain options (nothing is started)', () => {
   it('the chain id comes from the Base Sepolia network name', () => {
@@ -301,8 +324,31 @@ describe('the anvil argument list (returned only; nothing is started)', () => {
   it('no fork: host, port, chain id and no dev accounts, exactly', () => {
     expect(buildAnvilArgs(optionsOf(base()))).toEqual(BASE_ARGS());
   });
-  it('a validated fork adds the fork URL, the pinned block and --no-fork-node-info', () => {
+  it('a validated fork adds the fork URL, the pinned block, --no-fork-node-info and the four fork limits, exactly', () => {
     expect(buildAnvilArgs(optionsOf(fork()))).toEqual([...BASE_ARGS(), ...FORK_ARGS()]);
+  });
+  it('the four fork limits come in a fixed order after --no-fork-node-info, the header as one argument', () => {
+    const args = buildAnvilArgs(optionsOf(dumpRun()));
+    const at = args.indexOf('--no-fork-node-info');
+    expect(args.slice(at + 1, at + 8)).toEqual([
+      '--no-storage-caching',
+      '--retries',
+      '0',
+      '--timeout',
+      '10000',
+      '--fork-header',
+      'User-Agent: repo-check',
+    ]);
+    for (const f of FORK_LIMIT_FLAGS) expect(args.filter((a) => a === f).length).toBe(1);
+    expect(FORK_LIMIT_ARGS).toEqual(args.slice(at + 1, at + 8));
+    expect(Object.isFrozen(FORK_LIMIT_ARGS)).toBe(true);
+  });
+  it('the four fork limits never appear without a validated fork: not for a plain run, not for a load run', () => {
+    for (const input of [base(), loadRun(), base({ stateDir: STATE, repoRoot: REPO })]) {
+      const args = buildAnvilArgs(optionsOf(input));
+      for (const f of FORK_LIMIT_FLAGS) expect(args.includes(f)).toBe(false);
+      expect(args.includes('User-Agent: repo-check')).toBe(false);
+    }
   });
   it('the one fork run adds --dump-state with its path, exactly', () => {
     expect(buildAnvilArgs(optionsOf(dumpRun()))).toEqual([...BASE_ARGS(), ...FORK_ARGS(), '--dump-state', DUMP]);
@@ -310,7 +356,7 @@ describe('the anvil argument list (returned only; nothing is started)', () => {
   it('an offline start adds --load-state with its path and no fork flag, exactly', () => {
     expect(buildAnvilArgs(optionsOf(loadRun()))).toEqual([...BASE_ARGS(), '--load-state', LOAD]);
   });
-  it('--state, --fund-accounts and --auto-impersonate never appear; --dump-state and --load-state only when validated', () => {
+  it('--state, funding, impersonation and rate-limit flags never appear; --dump-state and --load-state only when validated', () => {
     const extra = { state: '/x', dumpState: '/x', loadState: '/x', fundAccounts: ['a:1'], autoImpersonate: true };
     const plain = [base(extra as Partial<ChainOptionsInput>), fork(extra as Partial<ChainOptionsInput>)];
     const withState = [dumpRun(extra as Partial<ChainOptionsInput>), loadRun(extra as Partial<ChainOptionsInput>)];
@@ -326,6 +372,10 @@ describe('the anvil argument list (returned only; nothing is started)', () => {
           '--fork-url',
           '--fork-block-number',
           '--no-fork-node-info',
+          '--no-storage-caching',
+          '--retries',
+          '--timeout',
+          '--fork-header',
           '--dump-state',
           '--load-state',
         ]).toContain(f);

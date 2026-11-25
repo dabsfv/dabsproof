@@ -101,6 +101,13 @@ describe('starting the local chain (nothing is started here)', () => {
       '--fork-block-number',
       '123',
       '--no-fork-node-info',
+      '--no-storage-caching',
+      '--retries',
+      '0',
+      '--timeout',
+      '10000',
+      '--fork-header',
+      'User-Agent: repo-check',
       '--dump-state',
       dump,
     ]);

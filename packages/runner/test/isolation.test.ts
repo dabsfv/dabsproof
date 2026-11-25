@@ -91,7 +91,17 @@ describe('isolation', () => {
     expect(source.includes('process.env')).toBe(false);
     expect(source.includes('homedir')).toBe(false);
     expect(source.includes("Object.freeze({ PATH: '/usr/bin:/bin' })")).toBe(true);
-    for (const flag of ['--state', '--dump-state', '--load-state', '--fund-accounts', '--auto-impersonate']) {
+    for (const flag of [
+      '--state',
+      '--dump-state',
+      '--load-state',
+      '--fund-accounts',
+      '--auto-impersonate',
+      '--no-storage-caching',
+      '--retries',
+      '--timeout',
+      '--fork-header',
+    ]) {
       expect(source.includes(flag)).toBe(false);
     }
     expect(source.includes('shell: false')).toBe(true);
@@ -205,5 +215,10 @@ describe('isolation', () => {
       .map((f) => join(own, String(f)))
       .filter((f) => statSync(f).isFile());
     expect(srcFiles.filter((f) => /fake[ -]anvil/i.test(readFileSync(f, 'utf8'))).length).toBe(0);
+    // The four fork limits are named only in chain.ts, where buildAnvilArgs adds them; no other source
+    // file builds them by hand.
+    const FORK_LIMIT_FLAGS = ['--no-storage-caching', '--retries', '--timeout', '--fork-header'];
+    const naming = srcFiles.filter((f) => FORK_LIMIT_FLAGS.some((flag) => readFileSync(f, 'utf8').includes(flag)));
+    expect(naming.map((f) => basename(f))).toEqual(['chain.ts']);
   });
 });

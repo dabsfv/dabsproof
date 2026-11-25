@@ -143,6 +143,13 @@ describe('startChain against a fake anvil on 127.0.0.1:18546 (no fork is contact
       '--fork-block-number',
       '123',
       '--no-fork-node-info',
+      '--no-storage-caching',
+      '--retries',
+      '0',
+      '--timeout',
+      '10000',
+      '--fork-header',
+      'User-Agent: repo-check',
       '--dump-state',
       dump,
     ]);
