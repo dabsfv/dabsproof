@@ -3,6 +3,7 @@
 // time, and the fork URL is a made-up name on a .test domain. The state-path checks look at text only;
 // where a path really leads could not be verified here. These tests say nothing about anvil itself.
 import { randomBytes, randomInt } from 'node:crypto';
+import { brand } from '@dabsproof/brand';
 import { describe, expect, it } from 'vitest';
 import { FORK_LIMIT_ARGS } from '../src/chain.js';
 import {
@@ -16,6 +17,8 @@ import {
 } from '../src/index.js';
 
 const tag = () => randomBytes(4).toString('hex');
+/** The product's config folder name, from the brand package (the last part of configDir), not written here. */
+const CONFIG_FOLDER = brand.configDir.split('/').pop() ?? '';
 const BINARY = `/fake-${tag()}/bin/anvil`;
 const FORK = `https://rpc-${tag()}.example.test/`;
 const BLOCK = randomInt(1, 1_000_000_000);
@@ -190,7 +193,7 @@ describe('the local chain options (nothing is started)', () => {
         dumpRun({ stateDir: `${REPO}/state`, dumpStatePath: `${REPO}/state/x.json` }),
         dumpRun({ dumpStatePath: 'x.json' }),
         loadRun({ loadStatePath: 'x.json' }),
-        dumpRun({ dumpStatePath: `${STATE}/.config/dabsproof/x.json` }),
+        dumpRun({ dumpStatePath: `${STATE}/.config/${CONFIG_FOLDER}/x.json` }),
         dumpRun({ dumpStatePath: `${ROOT}/other/x.json` }),
         dumpRun({ dumpStatePath: `${STATE}/x.txt` }),
         dumpRun({ dumpStatePath: `${STATE}/.env.json` }),
@@ -290,22 +293,24 @@ describe('the saved chain state (paths are text only; nothing is read or written
       expect(reasonOf(loadRun({ loadStatePath: p }))).toBe('state-path-env-name');
     }
   });
-  it('a state path holding a .config segment followed by dabsproof is refused', () => {
-    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.config/dabsproof/x.json` }))).toBe(
-      'state-path-config-dabsproof',
+  it("a state path holding a .config segment followed by the product's config folder name is refused", () => {
+    expect(CONFIG_FOLDER.length > 0).toBe(true);
+    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.config/${CONFIG_FOLDER}/x.json` }))).toBe(
+      'state-path-in-config-dir',
     );
-    const inConfig = `${ROOT}/home/.config/dabsproof`;
+    const inConfig = `${ROOT}/home/.config/${CONFIG_FOLDER}`;
     expect(reasonOf(dumpRun({ stateDir: inConfig, dumpStatePath: `${inConfig}/x.json` }))).toBe(
-      'state-path-config-dabsproof',
+      'state-path-in-config-dir',
     );
     expect(reasonOf(loadRun({ stateDir: inConfig, loadStatePath: `${inConfig}/x.json` }))).toBe(
-      'state-path-config-dabsproof',
+      'state-path-in-config-dir',
     );
-    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.CONFIG/DabsProof/x.json` }))).toBe(
-      'state-path-config-dabsproof',
+    // Ignoring case, as before.
+    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.CONFIG/${CONFIG_FOLDER.toUpperCase()}/x.json` }))).toBe(
+      'state-path-in-config-dir',
     );
     // The two segments must follow one another.
-    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.config/other/dabsproof.json` }))).toBe('ok');
+    expect(reasonOf(dumpRun({ dumpStatePath: `${STATE}/.config/other/${CONFIG_FOLDER}.json` }))).toBe('ok');
   });
   it('writing state needs the fork run, loading state needs no fork, and both together are refused', () => {
     expect(reasonOf(base({ stateDir: STATE, repoRoot: REPO, dumpStatePath: DUMP }))).toBe('dump-state-without-fork');

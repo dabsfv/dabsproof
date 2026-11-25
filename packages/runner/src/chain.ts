@@ -9,6 +9,7 @@
 // path really leads could not be verified here. The argument list never holds --state, a funding flag
 // or an impersonation flag. Base Sepolia only (eip155:84532).
 import { isAbsolute } from 'node:path';
+import { brand } from '@dabsproof/brand';
 import { BASE_SEPOLIA } from '@dabsproof/registry';
 
 export const ANVIL_HOST = '127.0.0.1';
@@ -56,7 +57,7 @@ export const CHAIN_REASONS = [
   'state-dir-overlaps-repo',
   'dump-state-path-invalid',
   'load-state-path-invalid',
-  'state-path-config-dabsproof',
+  'state-path-in-config-dir',
   'state-path-outside-state-dir',
   'state-path-not-json',
   'state-path-env-name',
@@ -148,10 +149,17 @@ function overlaps(a: string, b: string): boolean {
   return x === y || x.startsWith(`${y}/`) || y.startsWith(`${x}/`);
 }
 
-/** True if the path holds a ".config" segment followed at once by a "dabsproof" segment, ignoring case. */
-function namesConfigDabsproof(p: string): boolean {
+/**
+ * The product's own config folder name: the last part of brand.configDir, taken as text only (no
+ * file is looked at), in lower case.
+ */
+const CONFIG_FOLDER = (brand.configDir.split('/').pop() ?? '').toLowerCase();
+
+/** True if the path holds a ".config" segment followed at once by the config folder name, ignoring case. */
+function namesOwnConfigDir(p: string): boolean {
+  if (CONFIG_FOLDER === '') return false;
   const s = p.toLowerCase().split('/');
-  return s.some((seg, i) => seg === '.config' && s[i + 1] === 'dabsproof');
+  return s.some((seg, i) => seg === '.config' && s[i + 1] === CONFIG_FOLDER);
 }
 
 function checkStatePath(
@@ -160,7 +168,7 @@ function checkStatePath(
   invalid: 'dump-state-path-invalid' | 'load-state-path-invalid',
 ): { ok: true; path: string } | { ok: false; reason: ChainReason } {
   if (!isPlainAbsolute(p)) return { ok: false, reason: invalid };
-  if (namesConfigDabsproof(p)) return { ok: false, reason: 'state-path-config-dabsproof' };
+  if (namesOwnConfigDir(p)) return { ok: false, reason: 'state-path-in-config-dir' };
   // Inside the state folder: the folder's own text plus "/" must begin the path, so a sibling such as
   // /x/state-other is not inside /x/state. Compared with case kept.
   if (!p.startsWith(`${stateDir}/`)) return { ok: false, reason: 'state-path-outside-state-dir' };

@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { brand } from '@dabsproof/brand';
 import { describe, expect, it } from 'vitest';
 
 const CLI = fileURLToPath(new URL('../../cli/', import.meta.url));
@@ -59,7 +60,7 @@ describe('isolation', () => {
       /['"`](?:node:)?(?:child_process|net|http|https|http2|dns|tls|dgram|cluster|worker_threads)['"`]|\bfetch\s*\(|\bspawn|\bexec(?:File)?(?:Sync)?\s*\(|process\.env|homedir/;
     expect(STARTS_OR_SENDS.test(source)).toBe(false);
     const specifiers = [...source.matchAll(/^import [^;]*? from ['"]([^'"]+)['"]/gm)].map((m) => m[1]);
-    expect(specifiers.sort()).toEqual(['@dabsproof/registry', 'node:path']);
+    expect(specifiers.sort()).toEqual(['@dabsproof/brand', '@dabsproof/registry', 'node:path']);
     // (b) No tracked file outside the runner's src/ and test/ names chain.ts or any of its exports; the
     // CLI's source names none of them either.
     const chain = await import('../src/chain.js');
@@ -220,5 +221,24 @@ describe('isolation', () => {
     const FORK_LIMIT_FLAGS = ['--no-storage-caching', '--retries', '--timeout', '--fork-header'];
     const naming = srcFiles.filter((f) => FORK_LIMIT_FLAGS.some((flag) => readFileSync(f, 'utf8').includes(flag)));
     expect(naming.map((f) => basename(f))).toEqual(['chain.ts']);
+  });
+
+  it('no runner source file names the product, except as the npm scope in an import specifier', () => {
+    // The brand rule: the product name and slugs live in brand.config.json and packages/brand only.
+    // The names to look for come from the brand package, not from text written here.
+    const names = [...new Set([brand.slug, brand.productName, brand.cliName].map((n) => n.toLowerCase()))];
+    const scope = brand.npmScope.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // A quoted specifier that begins with the npm scope and a slash, such as an import's from text.
+    const SPECIFIER = new RegExp(`(['"\`])${scope}/[a-z0-9-]+(?:/[^'"\`]*)?\\1`, 'gi');
+    const own = fileURLToPath(new URL('../src/', import.meta.url));
+    const srcFiles = readdirSync(own, { recursive: true })
+      .map((f) => join(own, String(f)))
+      .filter((f) => statSync(f).isFile() && f.endsWith('.ts'));
+    expect(srcFiles.length > 0).toBe(true);
+    const naming = srcFiles.filter((f) => {
+      const text = readFileSync(f, 'utf8').replace(SPECIFIER, '').toLowerCase();
+      return names.some((n) => text.includes(n));
+    });
+    expect(naming.map((f) => basename(f))).toEqual([]);
   });
 });
