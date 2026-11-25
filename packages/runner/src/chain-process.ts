@@ -81,6 +81,8 @@ export interface ChainStopResult {
 export interface ChainProcess {
   port: number;
   pid: number;
+  /** True only when this chain was started as a validated fork. */
+  readonly fork: boolean;
   /** Stops the process by its ID; a second call returns the same result. */
   stop: () => Promise<ChainStopResult>;
 }
@@ -309,7 +311,7 @@ export async function startChain(
     return id === null ? 'no' : 'mismatch';
   });
   if (ready.result === 'ready' && child.pid !== undefined) {
-    return { ok: true, port: launch.port, pid: child.pid, stop };
+    return { ok: true, port: launch.port, pid: child.pid, fork: launch.fork, stop };
   }
   await stop();
   return { ok: false, reason: ready.result === 'ready' ? 'start-failed' : ready.result };

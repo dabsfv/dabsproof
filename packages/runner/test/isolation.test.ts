@@ -241,4 +241,53 @@ describe('isolation', () => {
     });
     expect(naming.map((f) => basename(f))).toEqual([]);
   });
+
+  it('fund.ts talks only to the local chain, owns the funding methods, and its fake stays in its test', () => {
+    const source = readFileSync(new URL('../src/fund.ts', import.meta.url), 'utf8');
+    // One URL form only, once: the loopback origin built from ANVIL_HOST and the chain's port.
+    const ORIGIN = `http://${'$'}{ANVIL_HOST}:${'$'}{input.chain.port}`;
+    expect(source.split('://').length - 1).toBe(1);
+    expect(source.includes(`\`${ORIGIN}\``)).toBe(true);
+    expect(/https:/i.test(source)).toBe(false);
+    const HOST_NAME = /\blocalhost\b|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|dev|xyz|app|test|local|sh|co)\b/i;
+    expect(HOST_NAME.test(source)).toBe(false);
+    // No environment, no file use, no fetch of its own, no anvil flag text; only the runner's own modules.
+    expect(source.includes('process.env')).toBe(false);
+    expect(/\bfetch\s*\(/.test(source)).toBe(false);
+    expect(/['"`](?:node:)?fs['"`]/.test(source)).toBe(false);
+    expect(/(?:^|[^A-Za-z0-9])--[a-z]/.test(source)).toBe(false);
+    const specifiers = [...source.matchAll(/^import [^;]*? from ['"]([^'"]+)['"]/gm)].map((m) => m[1] ?? '');
+    expect(specifiers.length > 0).toBe(true);
+    expect(specifiers.every((s) => s.startsWith('./'))).toBe(true);
+    // The state-changing funding methods are named in fund.ts only; no runner source file names a
+    // balance-writing or storage-writing helper, or automatic impersonation.
+    const own = fileURLToPath(new URL('../src/', import.meta.url));
+    const srcFiles = readdirSync(own, { recursive: true })
+      .map((f) => join(own, String(f)))
+      .filter((f) => statSync(f).isFile());
+    const FUNDING = [
+      'anvil_setBalance',
+      'anvil_impersonateAccount',
+      'anvil_stopImpersonatingAccount',
+      'eth_sendTransaction',
+      'eth_getTransactionReceipt',
+    ];
+    const naming = srcFiles.filter((f) => FUNDING.some((m) => readFileSync(f, 'utf8').includes(m)));
+    expect(naming.map((f) => basename(f))).toEqual(['fund.ts']);
+    const BANNED = ['anvil_dealERC20', 'anvil_setStorageAt', 'anvil_autoImpersonateAccount', 'auto-impersonate'];
+    expect(srcFiles.filter((f) => BANNED.some((b) => readFileSync(f, 'utf8').includes(b))).length).toBe(0);
+    // The funding fake's text lives only in its own test file, and stays on 127.0.0.1.
+    const BEGIN = ['// fake', 'anvil', 'begins'].join(' ');
+    const END = ['// fake', 'anvil', 'ends'].join(' ');
+    const fakeFile = readFileSync(new URL('./fund.fake.test.ts', import.meta.url), 'utf8');
+    const start = fakeFile.indexOf(BEGIN);
+    const end = fakeFile.indexOf(END);
+    expect(start > 0 && end > start).toBe(true);
+    const fakeText = fakeFile.slice(start, end);
+    expect(/\bfetch\s*\(/.test(fakeText)).toBe(false);
+    expect(/https?:\/\//i.test(fakeText)).toBe(false);
+    expect(HOST_NAME.test(fakeText)).toBe(false);
+    expect([...new Set(fakeText.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) ?? [])]).toEqual(['127.0.0.1']);
+    expect(fakeText.includes("listen(Number(flag('--port')), '127.0.0.1')")).toBe(true);
+  });
 });
