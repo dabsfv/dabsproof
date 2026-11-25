@@ -170,4 +170,40 @@ describe('isolation', () => {
       expect(t.includes('process.env')).toBe(false);
     }
   });
+
+  it('chain-process.ts builds only its loopback origin, touches state files by metadata only, and the fake anvil stays in its test', () => {
+    const source = readFileSync(new URL('../src/chain-process.ts', import.meta.url), 'utf8');
+    // The file builds its own loopback target text, so exactly one URL form is allowed, once:
+    // http://127.0.0.1:<port>, written as http:// followed by ANVIL_HOST and the port. No https://.
+    const ORIGIN = `http://${'$'}{ANVIL_HOST}:${'$'}{launch.port}`;
+    expect(source.split('://').length - 1).toBe(1);
+    expect(source.includes(`\`${ORIGIN}\``)).toBe(true);
+    expect(/https:/i.test(source)).toBe(false);
+    // No host name of any kind.
+    const HOST_NAME = /\blocalhost\b|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|dev|xyz|app|test|local|sh|co)\b/i;
+    expect(HOST_NAME.test(source)).toBe(false);
+    // node:fs is used for lstatSync only: nothing is read, written, created, moved or removed.
+    expect(source.match(/^import [^;]*? from 'node:fs';$/gm)).toEqual(["import { lstatSync } from 'node:fs';"]);
+    const FS_WRITES_OR_READS =
+      /\b(?:readFile|readFileSync|writeFile|writeFileSync|appendFile|mkdir|mkdirSync|rmSync|rmdir|unlink|unlinkSync|openSync|createReadStream|createWriteStream|truncate|truncateSync|copyFile|rename|renameSync|symlink|readdir|readdirSync)\b/;
+    expect(FS_WRITES_OR_READS.test(source)).toBe(false);
+    // The fake anvil's text lives only in its own test file; the runner's source never names it.
+    const BEGIN = ['// fake', 'anvil', 'begins'].join(' ');
+    const END = ['// fake', 'anvil', 'ends'].join(' ');
+    const fakeFile = readFileSync(new URL('./chain-process.fake.test.ts', import.meta.url), 'utf8');
+    const start = fakeFile.indexOf(BEGIN);
+    const end = fakeFile.indexOf(END);
+    expect(start > 0 && end > start).toBe(true);
+    const fakeText = fakeFile.slice(start, end);
+    expect(/\bfetch\s*\(/.test(fakeText)).toBe(false);
+    expect(/https?:\/\//i.test(fakeText)).toBe(false);
+    expect(HOST_NAME.test(fakeText)).toBe(false);
+    expect([...new Set(fakeText.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) ?? [])]).toEqual(['127.0.0.1']);
+    expect(fakeText.includes("listen(Number(flag('--port')), '127.0.0.1')")).toBe(true);
+    const own = fileURLToPath(new URL('../src/', import.meta.url));
+    const srcFiles = readdirSync(own, { recursive: true })
+      .map((f) => join(own, String(f)))
+      .filter((f) => statSync(f).isFile());
+    expect(srcFiles.filter((f) => /fake[ -]anvil/i.test(readFileSync(f, 'utf8'))).length).toBe(0);
+  });
 });
