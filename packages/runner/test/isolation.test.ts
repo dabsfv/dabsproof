@@ -471,4 +471,57 @@ describe('isolation', () => {
     const NAMES = ['journal-format', 'buildLine', 'parseJournal', 'findUnfinished', 'checkOrder', 'JournalEntry'];
     expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
   });
+
+  it('journal.ts uses only the allowed file calls and modules, touches no key, has no output, and stays inside the runner', () => {
+    const source = readFileSync(new URL('../src/journal.ts', import.meta.url), 'utf8');
+    const specifiers = [...source.matchAll(/^import [^;]*? from ['"]([^'"]+)['"]/gm)].map((m) => m[1] ?? '');
+    expect(specifiers.sort()).toEqual(['./journal-format.js', '@dabsproof/brand', 'node:fs', 'node:path']);
+    expect(/\bimport\s*\(|\brequire\s*\(/.test(source)).toBe(false);
+    // From node:fs, exactly these names: open, fstat, lstat, read, write, fsync, close and the flags.
+    expect(source.match(/^import [^;]*? from 'node:fs';$/gm)).toEqual([
+      "import { closeSync, constants, fstatSync, fsyncSync, lstatSync, openSync, readSync, writeSync } from 'node:fs';",
+    ]);
+    // No call that deletes, shortens, renames, links, copies, makes or changes the mode or owner of anything.
+    const CHANGES =
+      /\b(?:unlink|rm|rmdir|truncate|ftruncate|rename|copyFile|cp|symlink|link|chmod|lchmod|fchmod|chown|lchown|fchown|writeFile|appendFile|mkdir|mkdtemp|utimes|futimes|createWriteStream)(?:Sync)?\s*\(/;
+    expect(CHANGES.test(source)).toBe(false);
+    for (const banned of [
+      'console',
+      'process.stdout',
+      'process.stderr',
+      'process.env',
+      'node:child_process',
+      'node:net',
+      'node:crypto',
+      'Date.now',
+      'Math.random',
+      'typed-data',
+      'authorise',
+      'signer',
+      'wallet',
+      '@noble',
+    ]) {
+      expect(source.includes(banned), banned).toBe(false);
+    }
+    expect(/\bfetch\s*\(/.test(source)).toBe(false);
+    // Nothing outside the runner names the file or its exports (tracked and new files, ignored left out).
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const outside = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter((f) => f !== '' && !f.startsWith('packages/runner/') && existsSync(join(root, f)))
+      .filter((f) => statSync(join(root, f)).isFile());
+    expect(outside.length > 0).toBe(true);
+    const NAMES = [
+      'journal.ts',
+      'journal.js',
+      'openJournal',
+      'JournalHandle',
+      'MAX_JOURNAL_BYTES',
+      'JOURNAL_FILE_NAME',
+    ];
+    expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
+  });
 });
