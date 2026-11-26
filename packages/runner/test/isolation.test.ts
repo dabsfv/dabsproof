@@ -438,4 +438,37 @@ describe('isolation', () => {
     const NAMES = ['authorise.ts', 'readPlanForSigning', 'isCheckedPlan', 'CheckedPlan', 'AuthoriseReason'];
     expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
   });
+
+  it('journal-format.ts imports no node: module and only the allowed packages, has no time, randomness or output, and stays inside the runner', () => {
+    const source = readFileSync(new URL('../src/journal-format.ts', import.meta.url), 'utf8');
+    const specifiers = [...source.matchAll(/^import [^;]*? from ['"]([^'"]+)['"]/gm)].map((m) => m[1] ?? '');
+    expect(specifiers.length > 0).toBe(true);
+    const ALLOWED = ['@dabsproof/registry', '@dabsproof/evm'];
+    for (const s of specifiers) expect(ALLOWED.includes(s) || s.startsWith('./'), s).toBe(true);
+    expect(/\bimport\s*\(|\brequire\s*\(/.test(source)).toBe(false);
+    for (const banned of [
+      'node:',
+      'console',
+      'process.stdout',
+      'process.stderr',
+      'process.env',
+      'Date.now',
+      'Math.random',
+    ]) {
+      expect(source.includes(banned), banned).toBe(false);
+    }
+    expect(/\bfetch\s*\(/.test(source)).toBe(false);
+    // Nothing outside the runner names the file or its exports (tracked and new files, ignored left out).
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const outside = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter((f) => f !== '' && !f.startsWith('packages/runner/') && existsSync(join(root, f)))
+      .filter((f) => statSync(join(root, f)).isFile());
+    expect(outside.length > 0).toBe(true);
+    const NAMES = ['journal-format', 'buildLine', 'parseJournal', 'findUnfinished', 'checkOrder', 'JournalEntry'];
+    expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
+  });
 });
