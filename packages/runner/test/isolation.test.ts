@@ -416,15 +416,18 @@ describe('isolation', () => {
       expect(source.includes(banned), banned).toBe(false);
     }
     expect(/\bfetch\s*\(/.test(source)).toBe(false);
-    // The nonce and digest are read through readPlanForSigning only. For now no other runner source
-    // file names it; when the signer is written, only signer.ts may.
+    // The nonce and digest are read through readPlanForSigning only: no runner source file other than
+    // authorise.ts and signer.ts names it.
     const own = fileURLToPath(new URL('../src/', import.meta.url));
     const srcFiles = readdirSync(own, { recursive: true })
       .map((f) => join(own, String(f)))
       .filter((f) => statSync(f).isFile());
     expect(
-      srcFiles.filter((f) => readFileSync(f, 'utf8').includes('readPlanForSigning')).map((f) => basename(f)),
-    ).toEqual(['authorise.ts']);
+      srcFiles
+        .filter((f) => readFileSync(f, 'utf8').includes('readPlanForSigning'))
+        .map((f) => basename(f))
+        .sort(),
+    ).toEqual(['authorise.ts', 'signer.ts']);
     // Nothing outside the runner names the file or its exports (tracked and new files, ignored left out).
     const root = fileURLToPath(new URL('../../../', import.meta.url));
     const outside = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
@@ -522,6 +525,82 @@ describe('isolation', () => {
       'MAX_JOURNAL_BYTES',
       'JOURNAL_FILE_NAME',
     ];
+    expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
+  });
+  it('signer.ts reads only, imports only the allowed modules, has no output, and is the one source that signs', () => {
+    const source = readFileSync(new URL('../src/signer.ts', import.meta.url), 'utf8');
+    const specifiers = [...source.matchAll(/^import [^;]*? from ['"]([^'"]+)['"]/gm)].map((m) => m[1] ?? '');
+    // Exactly these modules: no journal, journal-format, send, fund or chain module, and no core.
+    expect(specifiers.sort()).toEqual([
+      './authorise.js',
+      './wallet.js',
+      '@dabsproof/evm',
+      '@noble/curves/secp256k1.js',
+      '@noble/hashes/utils.js',
+      'node:fs',
+      'node:path',
+    ]);
+    expect(/\bimport\s*\(|\brequire\s*\(/.test(source)).toBe(false);
+    // From node:fs, read-only calls only; from wallet.ts, the folder parts only.
+    expect(source.match(/^import [^;]*? from 'node:fs';$/gm)).toEqual([
+      "import { closeSync, constants, fstatSync, lstatSync, openSync, readSync } from 'node:fs';",
+    ]);
+    expect(source.match(/^import [^;]*? from '\.\/wallet\.js';$/gm)).toEqual([
+      "import { walletFolderParts } from './wallet.js';",
+    ]);
+    const CHANGES =
+      /\b(?:writeSync|write|writeFile|appendFile|unlink|rm|rmdir|rename|truncate|ftruncate|chmod|fchmod|lchmod|chown|fchown|lchown|copyFile|cp|symlink|link|mkdir|mkdtemp|utimes|futimes|createWriteStream|fsync)(?:Sync)?\s*\(/;
+    expect(CHANGES.test(source)).toBe(false);
+    for (const banned of [
+      'console',
+      'process.stdout',
+      'process.stderr',
+      'process.env',
+      'node:child_process',
+      'node:net',
+      'node:crypto',
+      'Date.now',
+      'Math.random',
+      '@dabsproof/core',
+      'journal',
+      'createWallets',
+    ]) {
+      expect(source.includes(banned), banned).toBe(false);
+    }
+    expect(/\bfetch\s*\(/.test(source)).toBe(false);
+    // The file's bytes are never made into text: the only toString is the label method and the one
+    // that writes v as hex.
+    const withoutAllowed = source.replace('toString(): string {', '').replace('(27 + recId).toString(16)', '');
+    expect(/toString\(|TextDecoder|String\.fromCharCode|Buffer\./.test(withoutAllowed)).toBe(false);
+
+    const own = fileURLToPath(new URL('../src/', import.meta.url));
+    const srcFiles = readdirSync(own, { recursive: true })
+      .map((f) => join(own, String(f)))
+      .filter((f) => statSync(f).isFile());
+    const text = (f: string) => readFileSync(f, 'utf8');
+    // (a) Only signer.ts, wallet.ts and wallet-cli.ts may name a key file.
+    const KEY_FILE = /\.key\b|buyer\.key|relayer\.key/;
+    const naming = srcFiles.filter((f) => KEY_FILE.test(text(f))).map((f) => basename(f));
+    expect(
+      naming.every((n) => ['signer.ts', 'wallet.ts', 'wallet-cli.ts'].includes(n)),
+      naming.join(','),
+    ).toBe(true);
+    expect(naming.includes('signer.ts')).toBe(true);
+    // (b) Only signer.ts imports the curve library.
+    const CURVES = /(?:\bfrom\s*|\bimport\s*\(\s*)['"`]@noble\/curves(?:\/[^'"`]*)?['"`]/;
+    expect(srcFiles.filter((f) => CURVES.test(text(f))).map((f) => basename(f))).toEqual(['signer.ts']);
+
+    // (e) Nothing outside the runner names the file, its function or its key file name.
+    const root = fileURLToPath(new URL('../../../', import.meta.url));
+    const outside = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+      .split('\0')
+      .filter((f) => f !== '' && !f.startsWith('packages/runner/') && existsSync(join(root, f)))
+      .filter((f) => statSync(join(root, f)).isFile());
+    expect(outside.length > 0).toBe(true);
+    const NAMES = ['signer.ts', 'signer.js', 'signPlan', 'SignedPayment', 'SignReason', 'buyer.key', 'relayer.key'];
     expect(outside.filter((f) => NAMES.some((n) => readFileSync(join(root, f), 'utf8').includes(n)))).toEqual([]);
   });
 });
