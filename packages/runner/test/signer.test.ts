@@ -28,7 +28,7 @@ import { keccak_256 } from '@noble/hashes/sha3.js';
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authorise, readPlanForSigning } from '../src/authorise.js';
-import { signPlan } from '../src/signer.js';
+import { planFingerprint, signPlan } from '../src/signer.js';
 import { TRANSFER_DOMAIN } from '../src/typed-data.js';
 import { walletFolderParts } from '../src/wallet.js';
 
@@ -492,6 +492,108 @@ describe('signer: what can be seen', () => {
       expect(seen.readBuffers.length > 0).toBe(true);
       expect(seen.keys.length).toBe(2);
       expectWiped();
+    });
+  });
+});
+
+describe('signer: planFingerprint', () => {
+  it('gives the same fp as the signed payment for the same plan and fingerprint function', () => {
+    withHome(({ home, key }) => {
+      const plan = planFor(key.address);
+      const seenArgs: unknown[][] = [];
+      const f = (...a: unknown[]) => {
+        seenArgs.push(a);
+        return `fp1:${String(seenArgs.length % 2).repeat(43)}`;
+      };
+      const pf = planFingerprint(plan, () => FP);
+      expect(pf).toEqual({ ok: true, fp: FP });
+      const r = signPlan({ home, plan, fingerprint });
+      if (!r.ok) throw new Error(r.reason);
+      expect(r.payment.fp).toBe(pf.ok ? pf.fp : '');
+      // Both call the function with the same three values: payer, nonce and validBefore.
+      const other = planFor(key.address, 2);
+      planFingerprint(other, f);
+      signPlan({ home, plan: other, fingerprint: f });
+      const p = readPlanForSigning(other);
+      expect(seenArgs).toEqual([
+        [p?.from, p?.nonce, p?.validBefore],
+        [p?.from, p?.nonce, p?.validBefore],
+      ]);
+    });
+  });
+
+  it('a look-alike plan is plan-not-checked', () => {
+    withHome(({ key }) => {
+      const real = planFor(key.address);
+      for (const plan of [{ ...readPlanForSigning(real) }, Object.create(real), null, undefined, 'plan']) {
+        expect(planFingerprint(plan, fingerprint)).toEqual({ ok: false, reason: 'plan-not-checked' });
+      }
+    });
+  });
+
+  it('a throwing or wrong-shape fingerprint function is sign-failed', () => {
+    withHome(({ key }) => {
+      const plan = planFor(key.address);
+      const bad: unknown[] = [
+        () => {
+          throw new Error('zz marker zz');
+        },
+        () => 'fp1:short',
+        () => `fp2:${'C'.repeat(43)}`,
+        () => `${FP} `,
+        () => 42,
+        'not a function',
+        undefined,
+      ];
+      for (const f of bad) expect(planFingerprint(plan, f)).toEqual({ ok: false, reason: 'sign-failed' });
+    });
+  });
+
+  it('holds no nonce, key, signature or digest in any printed form, and opens no file', () => {
+    withHome(({ home, key }) => {
+      const plan = planFor(key.address);
+      const p = readPlanForSigning(plan);
+      if (p === null) throw new Error('plan');
+      const opened = seen.opened.length;
+      const results = [
+        planFingerprint(plan, fingerprint),
+        planFingerprint(plan, () => p.nonce),
+        planFingerprint({ ...p }, fingerprint),
+        planFingerprint(plan, () => {
+          throw new Error(p.nonce);
+        }),
+      ];
+      expect(seen.opened.length).toBe(opened);
+      expect(seen.keys.length).toBe(0);
+      expect(seen.readBuffers.length).toBe(0);
+      const r = signPlan({ home, plan, fingerprint });
+      if (!r.ok) throw new Error(r.reason);
+      const { signature } = take(r.payment);
+      const text = results.flatMap((x) => [JSON.stringify(x), String(x), inspect(x, { depth: 9 })]).join('\n');
+      for (const c of [
+        p.nonce,
+        p.nonce.slice(2),
+        p.digestHex,
+        p.digestHex.slice(2),
+        key.hex,
+        signature,
+        signature.slice(2),
+        home,
+      ]) {
+        expect(text.includes(c)).toBe(false);
+      }
+    });
+  });
+
+  it('does not stop the plan from being signed afterwards', () => {
+    withHome(({ home, key }) => {
+      const plan = planFor(key.address);
+      expect(planFingerprint(plan, fingerprint).ok).toBe(true);
+      expect(planFingerprint(plan, fingerprint).ok).toBe(true);
+      expect(reasonOf(signPlan({ home, plan, fingerprint }))).toBe('ok');
+      expect(reasonOf(signPlan({ home, plan, fingerprint }))).toBe('plan-already-signed');
+      // After signing it still gives the same fp; it reads only the plan.
+      expect(planFingerprint(plan, fingerprint)).toEqual({ ok: true, fp: FP });
     });
   });
 });

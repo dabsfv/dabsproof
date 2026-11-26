@@ -120,6 +120,35 @@ const nibble = (b: number): number => (b >= 0x30 && b <= 0x39 ? b - 0x30 : b >= 
 type Fail = { ok: false; reason: SignReason };
 const no = (reason: SignReason): Fail => ({ ok: false, reason });
 
+/** The injected fingerprint of the plan's payer, nonce and validBefore if it is fp1 plus 43 characters; else null. */
+function fingerprintOf(p: { from: string; nonce: string; validBefore: string }, fingerprint: unknown): string | null {
+  let fp: unknown;
+  try {
+    fp = typeof fingerprint === 'function' ? fingerprint(p.from, p.nonce, p.validBefore) : undefined;
+  } catch {
+    return null;
+  }
+  return typeof fp === 'string' && FP1.test(fp) ? fp : null;
+}
+
+/**
+ * The fingerprint signPlan would give this plan, without reading a key, opening a file or marking
+ * the plan as signed: so that the caller can record its intent before anything is signed.
+ */
+export function planFingerprint(
+  plan: unknown,
+  fingerprint: unknown,
+): { ok: true; fp: string } | { ok: false; reason: 'plan-not-checked' | 'sign-failed' } {
+  try {
+    const p = readPlanForSigning(plan);
+    if (p === null) return { ok: false, reason: 'plan-not-checked' };
+    const fp = fingerprintOf(p, fingerprint);
+    return fp === null ? { ok: false, reason: 'sign-failed' } : { ok: true, fp };
+  } catch {
+    return { ok: false, reason: 'sign-failed' };
+  }
+}
+
 /** Runs every check in order; the first that fails gives its reason, and nothing is signed. */
 export function signPlan(input: SignInput): { ok: true; payment: SignedPayment } | Fail {
   const key = new Uint8Array(32);
@@ -131,13 +160,8 @@ export function signPlan(input: SignInput): { ok: true; payment: SignedPayment }
     if (p === null || !isCheckedPlan(plan)) return no('plan-not-checked');
     if (signed.has(plan as object)) return no('plan-already-signed');
     // The fingerprint is made before the key is touched, so a bad one never costs a key read.
-    let fp: unknown;
-    try {
-      fp = typeof fingerprint === 'function' ? fingerprint(p.from, p.nonce, p.validBefore) : undefined;
-    } catch {
-      return no('sign-failed');
-    }
-    if (typeof fp !== 'string' || !FP1.test(fp)) return no('sign-failed');
+    const fp = fingerprintOf(p, fingerprint);
+    if (fp === null) return no('sign-failed');
     if (!isPlainAbsolute(home)) return no('key-path-invalid');
 
     const uid = typeof process.getuid === 'function' ? process.getuid() : -1;
